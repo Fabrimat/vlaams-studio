@@ -34,6 +34,14 @@ describe("translate-cache", () => {
     expect(parseTranslateResponse('{"translations":["x"]}', 2)).toBeNull()
   })
 
+  it("rejects a bare JSON array (not wrapped in translations object)", () => {
+    expect(parseTranslateResponse('["x","y"]', 2)).toBeNull()
+  })
+
+  it("rejects a JSON object without a translations array", () => {
+    expect(parseTranslateResponse('{"foo":1}', 1)).toBeNull()
+  })
+
   it("rejects malformed JSON", () => {
     expect(parseTranslateResponse("not json", 1)).toBeNull()
   })

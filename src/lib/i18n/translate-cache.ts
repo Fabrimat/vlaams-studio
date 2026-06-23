@@ -30,7 +30,7 @@ export function mergeTranslations(
 export function parseTranslateResponse(raw: string, count: number): string[] | null {
   try {
     const parsed = JSON.parse(raw)
-    const list = Array.isArray(parsed) ? parsed : parsed?.translations
+    const list = parsed?.translations
     if (!Array.isArray(list) || list.length !== count) return null
     if (!list.every((item) => typeof item === "string")) return null
     return list

@@ -59,25 +59,30 @@ export async function POST(request: Request) {
   let updatedCache = cache
   if (misses.length) {
     const baseUrl = (process.env.OPENAI_BASE_URL ?? defaultBaseUrl).replace(/\/$/, "")
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: process.env.OPENAI_TRANSLATE_MODEL ?? "gpt-4o-mini",
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              `You translate ${source} learning-app text into the language with code "${body.target}". ` +
-              `Translate faithfully and naturally. Return JSON: {"translations": string[]} with exactly ` +
-              `${misses.length} items, in the same order as the input array, and nothing else.`,
-          },
-          { role: "user", content: JSON.stringify(misses) },
-        ],
-      }),
-    })
+    let response: Response
+    try {
+      response = await fetch(`${baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: process.env.OPENAI_TRANSLATE_MODEL ?? "gpt-4o-mini",
+          temperature: 0,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                `You translate ${source} learning-app text into the language with code "${body.target}". ` +
+                `Translate faithfully and naturally. Return JSON: {"translations": string[]} with exactly ` +
+                `${misses.length} items, in the same order as the input array, and nothing else.`,
+            },
+            { role: "user", content: JSON.stringify(misses) },
+          ],
+        }),
+      })
+    } catch {
+      return NextResponse.json({ error: "Translation request failed." }, { status: 502 })
+    }
 
     const payload = (await response.json().catch(() => null)) as
       | { choices?: { message?: { content?: string } }[]; error?: { message?: string } }
