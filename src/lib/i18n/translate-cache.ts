@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto"
 
+export function isValidLanguageTarget(target: string): boolean {
+  return /^[a-z]{2,8}(-[a-z0-9]{2,8})?$/i.test(target)
+}
+
 export function cacheKey(text: string): string {
   return createHash("sha256").update(text).digest("hex")
 }

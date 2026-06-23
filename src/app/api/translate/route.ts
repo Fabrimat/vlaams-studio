@@ -4,6 +4,7 @@ import path from "node:path"
 import { NextResponse } from "next/server"
 
 import {
+  isValidLanguageTarget,
   partitionByCache,
   mergeTranslations,
   parseTranslateResponse,
@@ -27,9 +28,16 @@ function isBody(value: unknown): value is Body {
   )
 }
 
+function safeCachePath(target: string): string {
+  const resolvedRoot = path.resolve(cacheRoot)
+  const full = path.resolve(resolvedRoot, `${target}.json`)
+  if (!full.startsWith(resolvedRoot + path.sep)) throw new Error("invalid cache target")
+  return full
+}
+
 async function readCache(target: string): Promise<Record<string, string>> {
   try {
-    const raw = await readFile(path.join(cacheRoot, `${target}.json`), "utf-8")
+    const raw = await readFile(safeCachePath(target), "utf-8")
     return JSON.parse(raw) as Record<string, string>
   } catch {
     return {}
@@ -38,7 +46,7 @@ async function readCache(target: string): Promise<Record<string, string>> {
 
 async function writeCache(target: string, cache: Record<string, string>) {
   await mkdir(cacheRoot, { recursive: true })
-  await writeFile(path.join(cacheRoot, `${target}.json`), `${JSON.stringify(cache, null, 2)}\n`, "utf-8")
+  await writeFile(safeCachePath(target), `${JSON.stringify(cache, null, 2)}\n`, "utf-8")
 }
 
 export async function POST(request: Request) {
@@ -50,6 +58,9 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
   if (!isBody(body)) {
     return NextResponse.json({ error: "Invalid translation request." }, { status: 400 })
+  }
+  if (!isValidLanguageTarget(body.target)) {
+    return NextResponse.json({ error: "Invalid translation target." }, { status: 400 })
   }
 
   const source = body.source ?? "nl"

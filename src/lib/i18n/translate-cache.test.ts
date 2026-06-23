@@ -2,10 +2,42 @@ import { describe, expect, it } from "vitest"
 
 import {
   cacheKey,
+  isValidLanguageTarget,
   partitionByCache,
   mergeTranslations,
   parseTranslateResponse,
 } from "./translate-cache"
+
+describe("isValidLanguageTarget", () => {
+  it("accepts simple two-letter codes", () => {
+    expect(isValidLanguageTarget("en")).toBe(true)
+    expect(isValidLanguageTarget("zh")).toBe(true)
+  })
+
+  it("accepts BCP-47 subtag codes", () => {
+    expect(isValidLanguageTarget("pt-br")).toBe(true)
+  })
+
+  it("rejects path traversal strings", () => {
+    expect(isValidLanguageTarget("../../etc/passwd")).toBe(false)
+  })
+
+  it("rejects strings containing a slash", () => {
+    expect(isValidLanguageTarget("a/b")).toBe(false)
+  })
+
+  it("rejects double-dot sequences", () => {
+    expect(isValidLanguageTarget("..")).toBe(false)
+  })
+
+  it("rejects empty string", () => {
+    expect(isValidLanguageTarget("")).toBe(false)
+  })
+
+  it("rejects filenames with extensions", () => {
+    expect(isValidLanguageTarget("en.json")).toBe(false)
+  })
+})
 
 describe("translate-cache", () => {
   it("derives a stable key per source text", () => {
