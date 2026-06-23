@@ -24,7 +24,7 @@ export function Translatable({
       setShown(false)
       return
     }
-    if (translation) {
+    if (translation !== null) {
       setShown(true)
       return
     }
@@ -37,7 +37,7 @@ export function Translatable({
       })
       if (!response.ok) throw new Error("translate failed")
       const data = (await response.json()) as { translations: string[] }
-      setTranslation(data.translations[0] ?? "")
+      setTranslation(data.translations[0] ?? null)
       setShown(true)
       setStatus("idle")
     } catch {
@@ -62,7 +62,7 @@ export function Translatable({
       {status === "error" && (
         <span className="ml-2 text-[11px] text-[#9a5b28]">{t("content.translationFailed")}</span>
       )}
-      {shown && translation && (
+      {shown && translation !== null && (
         <span dir="auto" className="mt-1 block text-[13px] italic text-[#5a615b]">
           {translation}
         </span>

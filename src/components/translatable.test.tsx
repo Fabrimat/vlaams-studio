@@ -33,4 +33,18 @@ describe("Translatable", () => {
     fireEvent.click(screen.getByRole("button", { name: "Translate" }))
     await waitFor(() => expect(screen.getByText("Buongiorno")).toBeDefined())
   })
+
+  it("does not refetch on second reveal", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ translations: ["Buongiorno"] }), { status: 200 }),
+    )
+    vi.stubGlobal("fetch", mockFetch)
+    renderTranslatable()
+    fireEvent.click(screen.getByRole("button", { name: "Translate" }))
+    await screen.findByText("Buongiorno")
+    fireEvent.click(screen.getByRole("button", { name: "Hide translation" }))
+    fireEvent.click(screen.getByRole("button", { name: "Translate" }))
+    await screen.findByText("Buongiorno")
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
 })
