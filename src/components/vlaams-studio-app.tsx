@@ -57,8 +57,8 @@ import {
   parsePreferencesSnapshot,
 } from "@/lib/studio/preferences"
 import { LanguageProvider, useT } from "@/lib/i18n/provider"
-import { locales, uiLanguages, type MessageKey } from "@/lib/i18n/locales"
-import { translationLanguages } from "@/lib/i18n/languages"
+import { locales, uiLanguages, isUiLanguage, type MessageKey } from "@/lib/i18n/locales"
+import { translationLanguages, isTranslationLanguage } from "@/lib/i18n/languages"
 
 const progressStorageKey = "vlaams-studio-progress-v2"
 const levelStorageKey = "vlaams-studio-level"
@@ -187,12 +187,11 @@ function readStoredPreferences(): PracticePreferences {
         ? storedState.showCaptions
         : defaultPreferences.showCaptions,
     uiLanguage:
-      typeof storedState.uiLanguage === "string" && (storedState.uiLanguage in locales)
-        ? storedState.uiLanguage as PracticePreferences["uiLanguage"]
+      typeof storedState.uiLanguage === "string" && isUiLanguage(storedState.uiLanguage)
+        ? storedState.uiLanguage
         : defaultPreferences.uiLanguage,
     translationLanguage:
-      typeof storedState.translationLanguage === "string" &&
-      translationLanguages.some((l) => l.code === storedState.translationLanguage)
+      typeof storedState.translationLanguage === "string" && isTranslationLanguage(storedState.translationLanguage)
         ? storedState.translationLanguage
         : defaultPreferences.translationLanguage,
   }
@@ -384,6 +383,10 @@ export function VlaamsStudioApp() {
 function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferences }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const t = useT()
+  const tRef = useRef(t)
+  useEffect(() => {
+    tRef.current = t
+  })
   const {
     activeMaterialIds,
     correctionStyle,
@@ -447,14 +450,14 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
       })
       .catch(() => {
         if (isActive) {
-          setUploadState({ status: "error", message: t("upload.localUnavailable") })
+          setUploadState({ status: "error", message: tRef.current("upload.localUnavailable") })
         }
       })
 
     return () => {
       isActive = false
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- intentionally run once on mount; t is stable for this one-time error path
+  }, [])
 
   function selectLevel(level: PracticeLevel) {
     const nextScenario = scenarios.find((scenario) => scenario.level === level)
@@ -767,7 +770,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
                 >
                   {isSelected && (
                     <span className="absolute left-3.5 top-3.5 inline-flex items-center rounded-md bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
-                      Actief
+                      {t("scenario.active")}
                     </span>
                   )}
                   <Icon
@@ -1229,7 +1232,7 @@ function PracticeConversation({
         onScroll={handleScroll}
         role="log"
         aria-live="polite"
-        aria-label="Gesprekstranscript"
+        aria-label={t("conv.transcriptAria")}
         className="relative max-h-[320px] overflow-y-auto scroll-smooth"
       >
         <div className="divide-y divide-[#ededdf]">
