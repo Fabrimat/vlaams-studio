@@ -33,7 +33,6 @@ import {
   type Scenario,
   levels,
   scenarios,
-  seedFeedback,
   seedMaterials,
 } from "@/lib/practice-data"
 import { cn } from "@/lib/utils"
@@ -42,49 +41,30 @@ import type { CorrectionPayload, TranscriptTurn } from "@/lib/realtime/events"
 import {
   cloneDefaultPreferences,
   focusForScenario,
-  metricDetailCopy,
+  metricDetailFocus,
   panelTitleFor,
   updateVocabularyGoals,
 } from "@/lib/studio/ui-state"
-
-type PracticeProgress = Record<PracticeLevel, number>
-type PracticePreferences = {
-  selectedLevel: PracticeLevel
-  selectedScenarioId: string
-  progress: PracticeProgress
-  streakDays: number
-  sessionScore: number
-  feedback: FeedbackItem[]
-  useMaterialInSession: boolean
-  activeMaterialIds: string[]
-  selectedVocabularyGoals: string[]
-  focusedGrammar: string | null
-  correctionStyle: "gentle" | "direct"
-  showCaptions: boolean
-}
+import {
+  type PracticePreferences,
+  type PracticeProgress,
+  defaultPreferences,
+  defaultLevel,
+  defaultScenarioId,
+  defaultProgress,
+  sanitizeFeedback,
+  sanitizeStringArray,
+  parsePreferencesSnapshot,
+} from "@/lib/studio/preferences"
+import { LanguageProvider, useT } from "@/lib/i18n/provider"
+import { locales, uiLanguages, type MessageKey } from "@/lib/i18n/locales"
+import { translationLanguages } from "@/lib/i18n/languages"
 
 const progressStorageKey = "vlaams-studio-progress-v2"
 const levelStorageKey = "vlaams-studio-level"
 const scenarioStorageKey = "vlaams-studio-scenario"
 const studioStateStorageKey = "vlaams-studio-state-v1"
 const preferenceChangeEvent = "vlaams-studio-preferences-change"
-const defaultProgress: PracticeProgress = { A1: 38, A2: 64, B1: 29, B2: 12 }
-const defaultLevel: PracticeLevel = "A2"
-const defaultScenarioId = "bakery-antwerp"
-const defaultPreferences: PracticePreferences = {
-  selectedLevel: defaultLevel,
-  selectedScenarioId: defaultScenarioId,
-  progress: defaultProgress,
-  streakDays: 7,
-  sessionScore: 78,
-  feedback: seedFeedback,
-  useMaterialInSession: true,
-  activeMaterialIds: ["sample-bakery"],
-  selectedVocabularyGoals: ["broodsoorten"],
-  focusedGrammar: null,
-  correctionStyle: "gentle",
-  showCaptions: true,
-}
 
 const learnerName = "Oleksandr T."
 const learnerInitials = "OT"
@@ -169,28 +149,6 @@ function loadStoredStudioState(): Partial<PracticePreferences> {
   }
 }
 
-function sanitizeFeedback(items: unknown): FeedbackItem[] {
-  if (!Array.isArray(items)) return seedFeedback
-
-  const parsed = items.filter((item): item is FeedbackItem => {
-    if (!item || typeof item !== "object") return false
-    const candidate = item as Partial<FeedbackItem>
-    return (
-      typeof candidate.label === "string" &&
-      typeof candidate.score === "number" &&
-      typeof candidate.note === "string"
-    )
-  })
-
-  return parsed.length ? parsed : seedFeedback
-}
-
-function sanitizeStringArray(items: unknown, fallback: string[] = []) {
-  if (!Array.isArray(items)) return fallback
-  const parsed = items.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-  return parsed.length ? parsed : fallback
-}
-
 function readStoredPreferences(): PracticePreferences {
   const selectedScenarioId = loadStoredScenario()
   const selectedScenario = scenarios.find((scenario) => scenario.id === selectedScenarioId)
@@ -228,6 +186,15 @@ function readStoredPreferences(): PracticePreferences {
       typeof storedState.showCaptions === "boolean"
         ? storedState.showCaptions
         : defaultPreferences.showCaptions,
+    uiLanguage:
+      typeof storedState.uiLanguage === "string" && (storedState.uiLanguage in locales)
+        ? storedState.uiLanguage as PracticePreferences["uiLanguage"]
+        : defaultPreferences.uiLanguage,
+    translationLanguage:
+      typeof storedState.translationLanguage === "string" &&
+      translationLanguages.some((l) => l.code === storedState.translationLanguage)
+        ? storedState.translationLanguage
+        : defaultPreferences.translationLanguage,
   }
 }
 
@@ -242,49 +209,6 @@ function getServerPreferencesSnapshot() {
 function getStoredPreferencesSnapshot() {
   if (typeof window === "undefined") return getServerPreferencesSnapshot()
   return serializePreferences(readStoredPreferences())
-}
-
-function parsePreferencesSnapshot(snapshot: string): PracticePreferences {
-  try {
-    const parsed = JSON.parse(snapshot) as Partial<PracticePreferences>
-    const selectedScenarioId =
-      parsed.selectedScenarioId && scenarios.some((scenario) => scenario.id === parsed.selectedScenarioId)
-        ? parsed.selectedScenarioId
-        : defaultScenarioId
-    const selectedScenario = scenarios.find((scenario) => scenario.id === selectedScenarioId)
-
-    return {
-      selectedLevel: selectedScenario?.level ?? defaultLevel,
-      selectedScenarioId,
-      progress: { ...defaultProgress, ...parsed.progress },
-      streakDays:
-        typeof parsed.streakDays === "number" && Number.isFinite(parsed.streakDays)
-          ? parsed.streakDays
-          : defaultPreferences.streakDays,
-      sessionScore:
-        typeof parsed.sessionScore === "number" && Number.isFinite(parsed.sessionScore)
-          ? parsed.sessionScore
-          : defaultPreferences.sessionScore,
-      feedback: sanitizeFeedback(parsed.feedback),
-      useMaterialInSession:
-        typeof parsed.useMaterialInSession === "boolean"
-          ? parsed.useMaterialInSession
-          : defaultPreferences.useMaterialInSession,
-      activeMaterialIds: Array.isArray(parsed.activeMaterialIds)
-        ? parsed.activeMaterialIds.filter((id): id is string => typeof id === "string")
-        : defaultPreferences.activeMaterialIds,
-      selectedVocabularyGoals: sanitizeStringArray(
-        parsed.selectedVocabularyGoals,
-        defaultPreferences.selectedVocabularyGoals,
-      ),
-      focusedGrammar: typeof parsed.focusedGrammar === "string" ? parsed.focusedGrammar : null,
-      correctionStyle: parsed.correctionStyle === "direct" ? "direct" : defaultPreferences.correctionStyle,
-      showCaptions:
-        typeof parsed.showCaptions === "boolean" ? parsed.showCaptions : defaultPreferences.showCaptions,
-    }
-  } catch {
-    return defaultPreferences
-  }
 }
 
 function subscribeToPreferences(onStoreChange: () => void) {
@@ -443,13 +367,23 @@ function createSeedConversationTurns(exchange: SeedExchange, showNote: boolean):
 }
 
 export function VlaamsStudioApp() {
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const preferenceSnapshot = useSyncExternalStore(
     subscribeToPreferences,
     getStoredPreferencesSnapshot,
     getServerPreferencesSnapshot,
   )
   const preferences = useMemo(() => parsePreferencesSnapshot(preferenceSnapshot), [preferenceSnapshot])
+
+  return (
+    <LanguageProvider language={preferences.uiLanguage}>
+      <VlaamsStudioAppContent preferences={preferences} />
+    </LanguageProvider>
+  )
+}
+
+function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferences }) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const t = useT()
   const {
     activeMaterialIds,
     correctionStyle,
@@ -482,8 +416,8 @@ export function VlaamsStudioApp() {
     : selectedScenario.defaultMaterial.name
   const materialMeta = hasUploadedMaterial
     ? activeMaterial?.kind === "pdf"
-      ? `PDF · ${activeMaterial.chunkCount} fragmenten`
-      : `Tekst · ${activeMaterial?.chunkCount ?? 0} fragmenten`
+      ? t("material.pdfMeta", { n: activeMaterial.chunkCount })
+      : t("material.textMeta", { n: activeMaterial?.chunkCount ?? 0 })
     : selectedScenario.defaultMaterial.size
   const conversationTurns = realtime.transcript.length
     ? realtime.transcript
@@ -513,14 +447,14 @@ export function VlaamsStudioApp() {
       })
       .catch(() => {
         if (isActive) {
-          setUploadState({ status: "error", message: "Lokaal lesmateriaal niet beschikbaar" })
+          setUploadState({ status: "error", message: t("upload.localUnavailable") })
         }
       })
 
     return () => {
       isActive = false
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- intentionally run once on mount; t is stable for this one-time error path
 
   function selectLevel(level: PracticeLevel) {
     const nextScenario = scenarios.find((scenario) => scenario.level === level)
@@ -591,7 +525,7 @@ export function VlaamsStudioApp() {
   function resetLocalSessionState() {
     if (isLive) realtime.disconnect()
     savePreferences(cloneDefaultPreferences(defaultPreferences))
-    setUploadState({ status: "idle", message: "Lokale oefenstatus gereset" })
+    setUploadState({ status: "idle", message: t("reset.done") })
     setActivePanel(null)
   }
 
@@ -600,12 +534,12 @@ export function VlaamsStudioApp() {
     if (!file) return
 
     if (!/\.(txt|md|pdf)$/i.test(file.name)) {
-      setUploadState({ status: "error", message: "Gebruik een .txt, .md of .pdf bestand" })
+      setUploadState({ status: "error", message: t("upload.invalidType") })
       if (fileInputRef.current) fileInputRef.current.value = ""
       return
     }
 
-    setUploadState({ status: "uploading", message: "Lesmateriaal uploaden" })
+    setUploadState({ status: "uploading", message: t("upload.uploading") })
     const formData = new FormData()
     formData.append("file", file)
 
@@ -617,28 +551,28 @@ export function VlaamsStudioApp() {
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null
-        setUploadState({ status: "error", message: payload?.error ?? "Upload mislukt" })
+        setUploadState({ status: "error", message: payload?.error ?? t("upload.failed") })
         return
       }
 
       const payload = (await response.json()) as { material: LessonMaterialSummary }
       setMaterials((current) => [payload.material, ...current])
       updatePreferences((current) => ({ ...current, activeMaterialIds: [payload.material.id] }))
-      setUploadState({ status: "success", message: "Lesmateriaal klaar" })
+      setUploadState({ status: "success", message: t("upload.ready") })
     } catch {
-      setUploadState({ status: "error", message: "Upload-route nog niet beschikbaar" })
+      setUploadState({ status: "error", message: t("upload.routeUnavailable") })
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ""
     }
   }
 
   const statusCopy = {
-    idle: "VERBONDEN",
-    "missing-key": "API-SLEUTEL ONTBREEKT",
-    connecting: "VERBINDING…",
-    live: "VERBONDEN",
-    "mic-error": "MICROFOON GEBLOKKEERD",
-    error: "VERBINDING MISLUKT",
+    idle: t("status.connected"),
+    "missing-key": t("status.missingKey"),
+    connecting: t("status.connecting"),
+    live: t("status.connected"),
+    "mic-error": t("status.micError"),
+    error: t("status.error"),
   }[realtime.status]
 
   const statusDot =
@@ -649,17 +583,17 @@ export function VlaamsStudioApp() {
         : "bg-[#2f6f57]"
 
   const phaseCopy = {
-    idle: "Ik luister…",
-    connecting: "Verbinden…",
-    listening: "Ik luister…",
-    transcribing: "Transcriptie loopt…",
-    "tutor-speaking": "Docent antwoordt…",
-    "searching-materials": "Lesmateriaal zoeken…",
-    ending: "Sessie afronden…",
-    reconnecting: "Opnieuw verbinden…",
-    "missing-key": "API-sleutel ontbreekt",
-    "mic-error": "Microfoon geblokkeerd",
-    error: "Verbinding mislukt",
+    idle: t("phase.idle"),
+    connecting: t("phase.connecting"),
+    listening: t("phase.listening"),
+    transcribing: t("phase.transcribing"),
+    "tutor-speaking": t("phase.tutorSpeaking"),
+    "searching-materials": t("phase.searchingMaterials"),
+    ending: t("phase.ending"),
+    reconnecting: t("phase.reconnecting"),
+    "missing-key": t("phase.missingKey"),
+    "mic-error": t("phase.micError"),
+    error: t("phase.error"),
   }[realtime.phase]
 
   const headlineClass =
@@ -675,7 +609,7 @@ export function VlaamsStudioApp() {
               Vlaams Studio
             </p>
 
-            <Section eyebrow="Niveau">
+            <Section eyebrow={t("rail.level.eyebrow")}>
               <div className="max-w-[300px] space-y-1.5 sm:max-w-none">
                 {levels.map((level) => {
                   const isSelected = selectedLevel === level.id
@@ -719,13 +653,13 @@ export function VlaamsStudioApp() {
 
             <RailRule />
 
-            <Section eyebrow="Vandaag">
+            <Section eyebrow={t("rail.today.eyebrow")}>
               <div className="flex items-start justify-between">
                 <div>
                   <p className="tabular text-[40px] font-semibold leading-[42px] tracking-tight">
                     {streakDays}
                   </p>
-                  <p className="mt-1 text-[13px] text-[#8a8e87]">dagen op rij</p>
+                  <p className="mt-1 text-[13px] text-[#8a8e87]">{t("rail.today.streakLabel")}</p>
                 </div>
                 <Flame
                   className="mt-2 size-6 text-[#c98b3a]"
@@ -753,11 +687,11 @@ export function VlaamsStudioApp() {
 
             <RailRule />
 
-            <Section eyebrow={`Voortgang ${selectedLevel}`}>
+            <Section eyebrow={t("rail.progress.eyebrow", { level: selectedLevel })}>
               <p className="tabular text-[36px] font-semibold leading-[40px] tracking-tight">
                 {progress[selectedLevel]}%
               </p>
-              <p className="mt-1 text-[13px] text-[#8a8e87]">van niveau voltooid</p>
+              <p className="mt-1 text-[13px] text-[#8a8e87]">{t("rail.progress.completed")}</p>
               <div className="mt-3 h-1 overflow-hidden rounded-full bg-[#e0ddd2]">
                 <div
                   className="h-full rounded-full bg-[#2f6f57] transition-[width]"
@@ -777,15 +711,15 @@ export function VlaamsStudioApp() {
                 </span>
                 <span className="flex flex-col leading-tight">
                   <span className="text-[13px] font-semibold">{learnerName}</span>
-                  <span className="text-[11px] text-[#8a8e87]">Bekijk profiel</span>
+                  <span className="text-[11px] text-[#8a8e87]">{t("rail.profile.view")}</span>
                 </span>
                 <ChevronDown className="ml-auto size-4 text-[#8a8e87]" aria-hidden="true" />
               </button>
               <RailRow icon={Settings} onClick={() => setActivePanel({ type: "settings" })}>
-                Instellingen
+                {t("rail.settings")}
               </RailRow>
               <RailRow icon={LogOut} onClick={() => setActivePanel({ type: "reset" })}>
-                Uitloggen
+                {t("rail.logout")}
               </RailRow>
             </div>
           </div>
@@ -807,7 +741,7 @@ export function VlaamsStudioApp() {
 
           <div className="mt-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
-              Huidig scenario
+              {t("scenario.current")}
             </p>
             <h1 className={cn("mt-2", headlineClass)}>{selectedScenario.title}</h1>
             <p className="mt-2 max-w-[44ch] text-[14px] leading-[21px] text-[#5a615b]">
@@ -882,15 +816,15 @@ export function VlaamsStudioApp() {
                 <button
                   type="button"
                   onClick={realtime.toggleMute}
-                  aria-label={realtime.isMuted ? "Microfoon weer aan" : "Microfoon dempen"}
-                  title={realtime.isMuted ? "Microfoon weer aan" : "Microfoon dempen"}
-                  data-control-tooltip={realtime.isMuted ? "Microfoon weer aan" : "Microfoon dempen"}
+                  aria-label={realtime.isMuted ? t("control.micOff") : t("control.micMute")}
+                  title={realtime.isMuted ? t("control.micOff") : t("control.micMute")}
+                  data-control-tooltip={realtime.isMuted ? t("control.micOff") : t("control.micMute")}
                   disabled={!isLive}
                   className="grid size-12 place-items-center rounded-full border border-[#e0ddd2] bg-white text-[#1f2420] transition disabled:opacity-50 hover:border-[#2f6f57]"
                 >
                   {realtime.isMuted ? <MicOff className="size-5" /> : <Pause className="size-5" />}
                 </button>
-                <span className="mt-3 whitespace-nowrap text-[12px] text-[#8a8e87]">Pauze</span>
+                <span className="mt-3 whitespace-nowrap text-[12px] text-[#8a8e87]">{t("control.pause")}</span>
               </div>
 
               <div className="flex w-[72px] flex-col items-center">
@@ -898,9 +832,9 @@ export function VlaamsStudioApp() {
                   type="button"
                   onClick={() => void handlePracticeToggle()}
                   disabled={isConnecting}
-                  aria-label={isLive ? "Sessie beëindigen" : "Live sessie starten"}
-                  title={isLive ? "Sessie beëindigen" : "Live sessie starten"}
-                  data-control-tooltip={isLive ? "Sessie beëindigen" : "Live sessie starten"}
+                  aria-label={isLive ? t("control.endSession") : t("control.startSession")}
+                  title={isLive ? t("control.endSession") : t("control.startSession")}
+                  data-control-tooltip={isLive ? t("control.endSession") : t("control.startSession")}
                   className={cn(
                     "relative grid size-[72px] place-items-center rounded-full text-white ring-[6px] ring-white shadow-[0_18px_40px_-10px_rgba(36,87,70,0.45)] transition active:scale-[0.97] disabled:opacity-70",
                     isLive ? "bg-[#245746] hover:bg-[#1d4738]" : "bg-[#2f6f57] hover:bg-[#26604a]",
@@ -915,7 +849,7 @@ export function VlaamsStudioApp() {
                   <Mic className="size-6" strokeWidth={2} />
                 </button>
                 <span className="mt-3 whitespace-nowrap text-[12px] text-[#8a8e87]">
-                  {isLive ? "Gesprek actief" : "Klik om te praten"}
+                  {isLive ? t("control.sessionActive") : t("control.clickToTalk")}
                 </span>
               </div>
 
@@ -923,16 +857,16 @@ export function VlaamsStudioApp() {
                 <button
                   type="button"
                   onClick={() => isLive && realtime.disconnect()}
-                  aria-label="Gesprek beëindigen"
-                  title="Gesprek beëindigen"
-                  data-control-tooltip="Gesprek beëindigen"
+                  aria-label={t("control.endConversation")}
+                  title={t("control.endConversation")}
+                  data-control-tooltip={t("control.endConversation")}
                   disabled={!isLive}
                   className="grid size-12 place-items-center rounded-full border border-[#e0ddd2] bg-white text-[#1f2420] transition disabled:opacity-50 hover:border-[#2f6f57]"
                 >
                   <Square className="size-4" fill="currentColor" />
                 </button>
                 <span className="mt-3 whitespace-nowrap text-[12px] text-[#8a8e87]">
-                  Gesprek beëindigen
+                  {t("control.endConversation")}
                 </span>
               </div>
             </div>
@@ -940,25 +874,24 @@ export function VlaamsStudioApp() {
             {realtime.status === "missing-key" && (
               <div className="mt-5 flex w-full max-w-[640px] items-start gap-2 rounded-lg border border-[#d9b78d] bg-[#fff8ed] p-3 text-left text-[13px] text-[#765327]">
                 <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                Voeg <code className="font-mono text-[12px]">OPENAI_API_KEY</code> toe aan
-                <code className="font-mono text-[12px]"> .env.local</code> om live sessies te starten.
+                <>{t("alert.missingKey.pre")} <code className="font-mono text-[12px]">OPENAI_API_KEY</code> {t("alert.missingKey.mid")}
+                  <code className="font-mono text-[12px]"> .env.local</code> {t("alert.missingKey.post")}</>
               </div>
             )}
             {realtime.status === "mic-error" && (
               <div className="mt-5 flex w-full max-w-[640px] items-start gap-3 rounded-lg border border-[#d9b78d] bg-[#fff8ed] p-3 text-left text-[13px] text-[#765327]">
                 <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 <div className="min-w-0">
-                  <p>{realtime.lastError ?? "Geef toestemming voor de microfoon om verder te oefenen."}</p>
+                  <p>{realtime.lastError ?? t("alert.micError.default")}</p>
                   <p className="mt-1 text-[12px] text-[#8b6b45]">
-                    In Chrome: klik op het site-icoon links van de URL, zet Microphone op Allow en
-                    probeer opnieuw.
+                    {t("alert.micError.hint")}
                   </p>
                   <button
                     type="button"
                     onClick={() => void handlePracticeToggle()}
                     className="mt-3 rounded-[6px] border border-[#d6d1c3] bg-white px-3 py-1.5 text-[12px] font-medium text-[#1f2420] transition hover:border-[#2f6f57]"
                   >
-                    Opnieuw proberen
+                    {t("alert.retry")}
                   </button>
                 </div>
               </div>
@@ -982,11 +915,11 @@ export function VlaamsStudioApp() {
           <div className="mt-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
-                Sessiescore
+                {t("session.scoreEyebrow")}
               </p>
               <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1f2420]">
                 <TrendingUp className="size-3.5 text-[#2f6f57]" strokeWidth={2} aria-hidden="true" />
-                Goed bezig
+                {t("session.goingWell")}
               </span>
             </div>
             <div className="mt-2 flex items-end gap-4">
@@ -1023,7 +956,7 @@ export function VlaamsStudioApp() {
                   onClick={() => setActivePanel({ type: "metric", metric: item })}
                   className="mt-3 inline-flex items-center rounded-md border border-[#e0ddd2] px-3 py-1.5 text-[12px] font-medium text-[#1f2420] transition hover:border-[#2f6f57] hover:text-[#2f6f57]"
                 >
-                  Details
+                  {t("common.details")}
                 </button>
               </div>
             ))}
@@ -1036,7 +969,7 @@ export function VlaamsStudioApp() {
             their own card are the file upload (functional grouping) and the
             teacher note (visual emphasis). */}
         <aside className="border-t border-[#e0ddd2] bg-[#f4f1ea] lg:sticky lg:top-0 lg:min-h-[100dvh] lg:border-l lg:border-t-0">
-          <RailSection eyebrow="Lesmateriaal" first>
+          <RailSection eyebrow={t("material.eyebrow")} first>
             <div className="rounded-[8px] border border-dashed border-[#d6d1c3] bg-white px-4 py-4">
               <div className="grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-4">
                 <span className="flex h-12 items-center justify-center border-r border-[#e0ddd2] text-[#1f2420]">
@@ -1074,7 +1007,7 @@ export function VlaamsStudioApp() {
               className="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-[8px] border border-[#e0ddd2] bg-white px-3 text-[13px] font-medium text-[#1f2420] transition hover:border-[#2f6f57] hover:text-[#2f6f57] disabled:opacity-60"
             >
               <RotateCcw className="size-4" strokeWidth={1.6} aria-hidden="true" />
-              {uploadState.status === "uploading" ? "Materiaal verwerken" : "Materiaal vervangen"}
+              {uploadState.status === "uploading" ? t("material.processing") : t("material.replace")}
             </button>
             <input
               ref={fileInputRef}
@@ -1096,7 +1029,7 @@ export function VlaamsStudioApp() {
 
             <div className="mt-6 flex items-center justify-between">
               <p className="text-[13px] font-medium text-[#5a615b]">
-                Gebruik dit materiaal in sessie
+                {t("material.useInSession")}
               </p>
               <Switch
                 checked={useMaterialInSession}
@@ -1108,7 +1041,7 @@ export function VlaamsStudioApp() {
             </div>
           </RailSection>
 
-          <RailSection eyebrow="Actief lesonderwerp">
+          <RailSection eyebrow={t("topic.eyebrow")}>
             <p className="text-[14px] font-semibold leading-tight">{selectedScenario.topic}</p>
             <p className="mt-1.5 text-[12px] text-[#8a8e87]">{selectedScenario.topicCategory}</p>
             <button
@@ -1116,11 +1049,11 @@ export function VlaamsStudioApp() {
               onClick={() => setActivePanel({ type: "setup" })}
               className="mt-3 inline-flex items-center rounded-[8px] border border-[#e0ddd2] bg-white px-3 py-1.5 text-[12px] font-medium text-[#1f2420] transition hover:border-[#2f6f57] hover:text-[#2f6f57]"
             >
-              Aanpassen
+              {t("topic.customize")}
             </button>
           </RailSection>
 
-          <RailSection eyebrow="Woordenschatdoelen">
+          <RailSection eyebrow={t("vocab.eyebrow")}>
             <div className="flex flex-wrap gap-x-2 gap-y-1.5">
               {selectedScenario.vocabularyGoals.map((word) => {
                 const isGoalSelected = selectedVocabularyGoals.includes(word)
@@ -1144,7 +1077,7 @@ export function VlaamsStudioApp() {
             </div>
           </RailSection>
 
-          <RailSection eyebrow="Grammaticafocus">
+          <RailSection eyebrow={t("grammar.eyebrow")}>
             <ul className="-mx-1">
               {selectedScenario.grammarPoints.map((point) => (
                 <li key={point}>
@@ -1169,14 +1102,14 @@ export function VlaamsStudioApp() {
             </ul>
           </RailSection>
 
-          <RailSection eyebrow="Docentnotities" last>
+          <RailSection eyebrow={t("teacher.eyebrow")} last>
             <div className="rounded-[8px] border border-[#dcd8cb] bg-[#ece7d9] p-4">
               <p className="font-serif text-[14.5px] italic leading-[22px] text-[#1f2420]">
                 {selectedScenario.teacherNote}
               </p>
             </div>
             <div className="mt-4 flex items-center justify-between text-[11px] text-[#8a8e87]">
-              <span>Laatst bewerkt door {selectedScenario.teacherNoteAuthor}</span>
+              <span>{t("teacher.editedBy", { author: selectedScenario.teacherNoteAuthor })}</span>
               <span>{selectedScenario.teacherNoteEditedAt}</span>
             </div>
           </RailSection>
@@ -1201,6 +1134,12 @@ export function VlaamsStudioApp() {
         }
         onSetUseMaterial={(checked) =>
           updatePreferences((current) => ({ ...current, useMaterialInSession: checked }))
+        }
+        onSetUiLanguage={(language) =>
+          updatePreferences((current) => ({ ...current, uiLanguage: language }))
+        }
+        onSetTranslationLanguage={(language) =>
+          updatePreferences((current) => ({ ...current, translationLanguage: language }))
         }
       />
     </main>
@@ -1236,6 +1175,7 @@ function PracticeConversation({
   showSeedCorrectionNote: boolean
   onToggleSeedCorrectionNote: () => void
 }) {
+  const t = useT()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isPinnedToLive, setIsPinnedToLive] = useState(true)
 
@@ -1270,7 +1210,7 @@ function PracticeConversation({
         <div className="flex items-center gap-2">
           <MessageCircle className="size-4 text-[#2f6f57]" strokeWidth={1.6} aria-hidden="true" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
-            Gesprek
+            {t("conv.title")}
           </p>
         </div>
         <span
@@ -1280,7 +1220,7 @@ function PracticeConversation({
           )}
         >
           <span className={cn("size-1.5 rounded-full", isLive ? "bg-[#2f6f57]" : "bg-[#cfcec5]")} />
-          {isLive ? "Live" : "Voorbeeld"}
+          {isLive ? t("conv.live") : t("conv.preview")}
         </span>
       </div>
 
@@ -1295,7 +1235,7 @@ function PracticeConversation({
         <div className="divide-y divide-[#ededdf]">
           {!showCaptions && (
             <div className="px-5 py-3 text-[13px] leading-[20px] text-[#5a615b]">
-              Bijschriften zijn verborgen. Correcties en lesmateriaal blijven zichtbaar.
+              {t("conv.captionsHidden")}
             </div>
           )}
           {visibleTurns.length ? (
@@ -1309,7 +1249,7 @@ function PracticeConversation({
             ))
           ) : (
             <div className="px-5 py-4 text-[13px] leading-[20px] text-[#8a8e87]">
-              Nog geen correcties in deze sessie.
+              {t("conv.noCorrections")}
             </div>
           )}
         </div>
@@ -1319,7 +1259,7 @@ function PracticeConversation({
             onClick={jumpToLive}
             className="sticky bottom-3 left-1/2 z-[1] -translate-x-1/2 rounded-full border border-[#d6d1c3] bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#2f6f57] shadow-[0_8px_24px_rgba(31,36,32,0.08)]"
           >
-            Nieuwste
+            {t("conv.jumpLatest")}
           </button>
         )}
       </div>
@@ -1336,19 +1276,21 @@ function ConversationTurn({
   showSeedCorrectionNote: boolean
   onToggleSeedCorrectionNote: () => void
 }) {
+  const t = useT()
+
   if (turn.speaker === "Correction" && turn.correction) {
     return (
       <div className="px-5 py-4">
         <div className="grid gap-4 sm:grid-cols-[88px_minmax(0,1fr)_auto] sm:items-start">
-          <span className="text-[13px] text-[#8a8e87]">Verbeterd</span>
+          <span className="text-[13px] text-[#8a8e87]">{t("speaker.correction")}</span>
           <CorrectionCard correction={turn.correction} showReason={turn.id !== "seed-correction" || showSeedCorrectionNote} />
           {turn.id === "seed-correction" && (
             <button
               type="button"
               onClick={onToggleSeedCorrectionNote}
-              aria-label={showSeedCorrectionNote ? "Verberg toelichting" : "Toon toelichting"}
-              title={showSeedCorrectionNote ? "Verberg toelichting" : "Toon toelichting"}
-              data-control-tooltip={showSeedCorrectionNote ? "Verberg toelichting" : "Toon toelichting"}
+              aria-label={showSeedCorrectionNote ? t("correction.hideNote") : t("correction.showNote")}
+              title={showSeedCorrectionNote ? t("correction.hideNote") : t("correction.showNote")}
+              data-control-tooltip={showSeedCorrectionNote ? t("correction.hideNote") : t("correction.showNote")}
               className="grid size-7 place-items-center rounded-full border border-[#e0ddd2] text-[#5a615b] transition hover:border-[#2f6f57] hover:text-[#2f6f57]"
             >
               <ChevronDown
@@ -1367,7 +1309,7 @@ function ConversationTurn({
   if (turn.speaker === "Material") {
     return (
       <div className="grid grid-cols-[88px_minmax(0,1fr)] gap-4 bg-[#f7faf6] px-5 py-3.5">
-        <span className="text-[13px] text-[#8a8e87]">Materiaal</span>
+        <span className="text-[13px] text-[#8a8e87]">{t("speaker.material")}</span>
         <p className="flex items-center gap-2 text-[13px] leading-[20px] text-[#2f6f57]">
           <BookOpen className="size-4 shrink-0" strokeWidth={1.6} aria-hidden="true" />
           {turn.text}
@@ -1379,7 +1321,7 @@ function ConversationTurn({
   if (turn.speaker === "System") {
     return (
       <div className="grid grid-cols-[88px_minmax(0,1fr)] gap-4 bg-[#fff8ed] px-5 py-3.5">
-        <span className="text-[13px] text-[#8a8e87]">Systeem</span>
+        <span className="text-[13px] text-[#8a8e87]">{t("speaker.system")}</span>
         <p className="flex items-center gap-2 text-[13px] leading-[20px] text-[#765327]">
           <AlertCircle className="size-4 shrink-0" strokeWidth={1.6} aria-hidden="true" />
           {turn.text}
@@ -1390,7 +1332,7 @@ function ConversationTurn({
 
   return (
     <div className="grid grid-cols-[88px_minmax(0,1fr)] gap-4 px-5 py-3.5">
-      <span className="text-[13px] text-[#8a8e87]">{transcriptLabel(turn.speaker)}</span>
+      <span className="text-[13px] text-[#8a8e87]">{t(transcriptLabel(turn.speaker))}</span>
       <div>
         <p
           className={cn(
@@ -1402,7 +1344,7 @@ function ConversationTurn({
         </p>
         {turn.status === "partial" && (
           <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[#8a8e87]">
-            live transcriptie
+            {t("conv.liveTranscription")}
           </p>
         )}
       </div>
@@ -1417,6 +1359,7 @@ function CorrectionCard({
   correction: CorrectionPayload
   showReason: boolean
 }) {
+  const t = useT()
   return (
     <div className="rounded-[8px] border border-[#d8e4da] bg-[#f7faf6] p-3">
       <div className="flex items-start gap-3">
@@ -1436,7 +1379,7 @@ function CorrectionCard({
             <div className="mt-2 space-y-1 text-[12.5px] leading-[19px] text-[#5a615b]">
               <p>{correction.reason}</p>
               {correction.grammarPoint && (
-                <p className="text-[#8a8e87]">Focus: {correction.grammarPoint}</p>
+                <p className="text-[#8a8e87]">{t("correction.focus", { point: correction.grammarPoint })}</p>
               )}
               {correction.retryPrompt && (
                 <p className="font-medium text-[#2f6f57]">{correction.retryPrompt}</p>
@@ -1463,6 +1406,8 @@ function StudioPanelOverlay({
   onSetCorrectionStyle,
   onSetShowCaptions,
   onSetUseMaterial,
+  onSetUiLanguage,
+  onSetTranslationLanguage,
 }: {
   panel: ActivePanel
   preferences: PracticePreferences
@@ -1477,10 +1422,14 @@ function StudioPanelOverlay({
   onSetCorrectionStyle: (style: PracticePreferences["correctionStyle"]) => void
   onSetShowCaptions: (checked: boolean) => void
   onSetUseMaterial: (checked: boolean) => void
+  onSetUiLanguage: (language: PracticePreferences["uiLanguage"]) => void
+  onSetTranslationLanguage: (language: string) => void
 }) {
+  const t = useT()
+
   if (!panel) return null
 
-  const title = panelTitleFor(panel)
+  const title = panel.type === "metric" ? panel.metric.label : t(panelTitleFor(panel) as MessageKey)
 
   return (
     <div className="fixed inset-0 z-20 grid place-items-center bg-[#1f2420]/18 px-4 py-6 backdrop-blur-[2px]">
@@ -1495,7 +1444,7 @@ function StudioPanelOverlay({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Paneel sluiten"
+            aria-label={t("panel.close")}
             className="grid size-8 place-items-center rounded-full border border-[#e0ddd2] bg-white text-[#5a615b] transition hover:border-[#2f6f57] hover:text-[#2f6f57]"
           >
             <X className="size-4" strokeWidth={1.7} />
@@ -1511,31 +1460,31 @@ function StudioPanelOverlay({
                 <div>
                   <p className="text-[15px] font-semibold">{learnerName}</p>
                   <p className="text-[13px] text-[#8a8e87]">
-                    {preferences.streakDays} dagen op rij · {preferences.progress[preferences.selectedLevel]}% {preferences.selectedLevel}
+                    {t("profile.streakSummary", { days: preferences.streakDays, progress: preferences.progress[preferences.selectedLevel], level: preferences.selectedLevel })}
                   </p>
                 </div>
               </div>
-              <PanelStat label="Huidig niveau" value={preferences.selectedLevel} note={selectedScenario.topicCategory} />
-              <PanelStat label="Sessiescore" value={`${preferences.sessionScore} / 100`} note="Laatste lokale oefensessie" />
-              <PanelStat label="Actieve doelen" value={`${preferences.selectedVocabularyGoals.length}`} note={preferences.selectedVocabularyGoals.join(", ")} />
+              <PanelStat label={t("profile.currentLevel")} value={preferences.selectedLevel} note={selectedScenario.topicCategory} />
+              <PanelStat label={t("profile.sessionScore")} value={`${preferences.sessionScore} / 100`} note={t("profile.lastSession")} />
+              <PanelStat label={t("profile.activeGoals")} value={`${preferences.selectedVocabularyGoals.length}`} note={preferences.selectedVocabularyGoals.join(", ")} />
             </div>
           )}
 
           {panel.type === "settings" && (
             <div className="space-y-5">
               <PanelSwitch
-                label="Bijschriften tonen"
+                label={t("settings.captions")}
                 checked={preferences.showCaptions}
                 onCheckedChange={onSetShowCaptions}
               />
               <PanelSwitch
-                label="Lesmateriaal gebruiken"
+                label={t("settings.useMaterial")}
                 checked={preferences.useMaterialInSession}
                 onCheckedChange={onSetUseMaterial}
               />
               <div>
                 <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#8a8e87]">
-                  Correctiestijl
+                  {t("settings.correctionStyle")}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {(["gentle", "direct"] as const).map((style) => (
@@ -1551,10 +1500,49 @@ function StudioPanelOverlay({
                           : "border-[#e0ddd2] bg-white text-[#1f2420] hover:border-[#2f6f57]",
                       )}
                     >
-                      {style === "gentle" ? "Rustig" : "Direct"}
+                      {style === "gentle" ? t("settings.gentle") : t("settings.direct")}
                     </button>
                   ))}
                 </div>
+              </div>
+              <div>
+                <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#8a8e87]">
+                  {t("settings.uiLanguage")}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {uiLanguages.map((code) => (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => onSetUiLanguage(code)}
+                      aria-pressed={preferences.uiLanguage === code}
+                      className={cn(
+                        "rounded-[8px] border px-3 py-2 text-[13px] font-medium transition",
+                        preferences.uiLanguage === code
+                          ? "border-[#2f6f57] bg-[#eef5f0] text-[#2f6f57]"
+                          : "border-[#e0ddd2] bg-white text-[#1f2420] hover:border-[#2f6f57]",
+                      )}
+                    >
+                      {locales[code].nativeName}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#8a8e87]">
+                  {t("settings.translationLanguage")}
+                </p>
+                <select
+                  value={preferences.translationLanguage}
+                  onChange={(event) => onSetTranslationLanguage(event.currentTarget.value)}
+                  className="w-full rounded-[8px] border border-[#e0ddd2] bg-white px-3 py-2 text-[13px] text-[#1f2420]"
+                >
+                  {translationLanguages.map((language) => (
+                    <option key={language.code} value={language.code}>
+                      {language.nativeName}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           )}
@@ -1562,13 +1550,12 @@ function StudioPanelOverlay({
           {panel.type === "reset" && (
             <div className="space-y-4">
               <p className="text-[14px] leading-[22px] text-[#5a615b]">
-                Er is geen account in deze lokale MVP. Deze actie reset alleen je lokale niveau,
-                scenario, score, doelen en sessiestatus.
+                {t("reset.body")}
               </p>
               <div className="flex justify-end gap-2">
-                <PanelButton onClick={onClose}>Annuleren</PanelButton>
+                <PanelButton onClick={onClose}>{t("reset.cancel")}</PanelButton>
                 <PanelButton tone="danger" onClick={onReset}>
-                  Reset lokaal
+                  {t("reset.confirm")}
                 </PanelButton>
               </div>
             </div>
@@ -1578,7 +1565,7 @@ function StudioPanelOverlay({
             <div className="space-y-5">
               <div>
                 <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#8a8e87]">
-                  Niveau
+                  {t("setup.level")}
                 </p>
                 <div className="grid grid-cols-4 gap-2">
                   {levels.map((level) => (
@@ -1600,7 +1587,7 @@ function StudioPanelOverlay({
               </div>
               <div>
                 <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#8a8e87]">
-                  Scenario
+                  {t("setup.scenario")}
                 </p>
                 <div className="space-y-2">
                   {scenarios.map((scenario) => (
@@ -1627,9 +1614,9 @@ function StudioPanelOverlay({
                 </div>
               </div>
               <PanelStat
-                label="Actief materiaal"
-                value={activeMaterial?.title ?? "Geen materiaal"}
-                note={`${materials.length} lokaal opgeslagen bestand${materials.length === 1 ? "" : "en"}`}
+                label={t("setup.activeMaterial")}
+                value={activeMaterial?.title ?? t("setup.noMaterial")}
+                note={t(materials.length === 1 ? "setup.fileCountOne" : "setup.fileCountOther", { n: materials.length })}
               />
             </div>
           )}
@@ -1643,7 +1630,7 @@ function StudioPanelOverlay({
               />
               <div className="rounded-[8px] border border-[#e0ddd2] bg-white p-4">
                 <p className="text-[13px] leading-[21px] text-[#5a615b]">
-                  {metricDetailCopy(panel.metric)}
+                  {t("panel.metric.detail", { focus: metricDetailFocus(panel.metric) })}
                 </p>
               </div>
             </div>
@@ -1651,11 +1638,10 @@ function StudioPanelOverlay({
 
           {panel.type === "grammar" && (
             <div className="space-y-4">
-              <PanelStat label="Focus" value={panel.point} note={selectedScenario.topic} />
+              <PanelStat label={t("grammar.focusLabel")} value={panel.point} note={selectedScenario.topic} />
               <div className="rounded-[8px] border border-[#e0ddd2] bg-white p-4">
                 <p className="text-[13px] leading-[21px] text-[#5a615b]">
-                  De volgende live sessie stuurt de tutor om dit punt actief te oefenen, met een
-                  korte correctie zodra je het gebruikt.
+                  {t("grammar.nextSession")}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -1851,10 +1837,10 @@ function RealtimeGlyph() {
   )
 }
 
-function transcriptLabel(speaker: "Tutor" | "You" | "Correction" | "Material" | "System") {
-  if (speaker === "You") return "Jij zei"
-  if (speaker === "Correction") return "Verbeterd"
-  if (speaker === "Material") return "Materiaal"
-  if (speaker === "System") return "Systeem"
-  return "Docent"
+function transcriptLabel(speaker: "Tutor" | "You" | "Correction" | "Material" | "System"): MessageKey {
+  if (speaker === "You") return "speaker.you"
+  if (speaker === "Correction") return "speaker.correction"
+  if (speaker === "Material") return "speaker.material"
+  if (speaker === "System") return "speaker.system"
+  return "speaker.tutor"
 }

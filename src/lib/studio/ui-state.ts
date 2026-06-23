@@ -1,3 +1,4 @@
+import type { MessageKey } from "@/lib/i18n/locales"
 import type { FeedbackItem, Scenario } from "@/lib/practice-data"
 
 export type StudioPanelType = "profile" | "settings" | "reset" | "setup" | "metric" | "grammar"
@@ -16,17 +17,19 @@ export function focusForScenario(scenario: Scenario) {
   }
 }
 
-export function panelTitleFor(panel: { type: StudioPanelType; metric?: FeedbackItem }) {
-  if (panel.type === "profile") return "Profiel"
-  if (panel.type === "settings") return "Instellingen"
-  if (panel.type === "reset") return "Lokale sessie resetten"
-  if (panel.type === "setup") return "Oefening aanpassen"
-  if (panel.type === "grammar") return "Grammaticafocus"
-  return panel.metric?.label ?? "Details"
+export function panelTitleFor(
+  panel: { type: StudioPanelType; metric?: FeedbackItem },
+): MessageKey | string {
+  if (panel.type === "profile") return "panel.title.profile"
+  if (panel.type === "settings") return "panel.title.settings"
+  if (panel.type === "reset") return "panel.title.reset"
+  if (panel.type === "setup") return "panel.title.setup"
+  if (panel.type === "grammar") return "panel.title.grammar"
+  return panel.metric?.label ?? "panel.title.detailsFallback"
 }
 
-export function metricDetailCopy(metric: FeedbackItem) {
-  return `Volgende sessie: vraag de tutor om twee korte herhalingen, een natuurlijker Vlaams alternatief en een snelle retry voor ${metric.label.toLowerCase()}.`
+export function metricDetailFocus(metric: FeedbackItem) {
+  return metric.label.toLowerCase()
 }
 
 export function cloneDefaultPreferences<T>(defaults: T): T {
