@@ -60,6 +60,7 @@ import {
 import { LanguageProvider, useT } from "@/lib/i18n/provider"
 import { locales, uiLanguages, isUiLanguage, type MessageKey } from "@/lib/i18n/locales"
 import { translationLanguages, isTranslationLanguage } from "@/lib/i18n/languages"
+import { Translatable } from "@/components/translatable"
 
 const progressStorageKey = "vlaams-studio-progress-v2"
 const levelStorageKey = "vlaams-studio-level"
@@ -400,6 +401,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
     sessionScore,
     showCaptions,
     streakDays,
+    translationLanguage,
     useMaterialInSession,
   } = preferences
   const [materials, setMaterials] = useState<LessonMaterialSummary[]>(seedMaterials)
@@ -753,9 +755,8 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
               {t("scenario.current")}
             </p>
             <h1 className={cn("mt-2", headlineClass)}>{selectedScenario.title}</h1>
-            <p className="mt-2 max-w-[44ch] text-[14px] leading-[21px] text-[#5a615b]">
-              {selectedScenario.objective}
-            </p>
+            <Translatable text={selectedScenario.objective} language={translationLanguage}
+              className="mt-2 block max-w-[44ch] text-[14px] leading-[21px] text-[#5a615b]" />
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1113,9 +1114,8 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
 
           <RailSection eyebrow={t("teacher.eyebrow")} last>
             <div className="rounded-[8px] border border-[#dcd8cb] bg-[#ece7d9] p-4">
-              <p className="font-serif text-[14.5px] italic leading-[22px] text-[#1f2420]">
-                {selectedScenario.teacherNote}
-              </p>
+              <Translatable text={selectedScenario.teacherNote} language={translationLanguage}
+                className="font-serif text-[14.5px] italic leading-[22px] text-[#1f2420]" />
             </div>
             <div className="mt-4 flex items-center justify-between text-[11px] text-[#8a8e87]">
               <span>{t("teacher.editedBy", { author: selectedScenario.teacherNoteAuthor })}</span>
