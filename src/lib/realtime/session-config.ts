@@ -77,6 +77,7 @@ Do not lecture. Continue the scene after each correction.
 End the practice only when it naturally makes sense: the learner completed the scenario goal, the scene reached a clear closing point, or the learner asks to stop.
 Do not end after a single answer or immediately after one correction unless the learner explicitly wants to stop.
 Before ending, say one brief spoken wrap-up with what went well and one next step.
+When you call end_practice_session, include numeric scores (0-100) for overall, pronunciation, vocabulary and confidence.
 Then call end_practice_session so the app can stop the live microphone/session cleanly.
 
 # Corrections
@@ -207,6 +208,16 @@ export function buildRealtimeSessionConfig(input: RealtimeSessionInput): Realtim
             nextStep: {
               type: "string",
               description: "Optional next step for the learner's next practice session.",
+            },
+            scores: {
+              type: "object",
+              description: "Optional 0-100 self-assessment scores for the learner's performance this session.",
+              properties: {
+                overall: { type: "number", description: "Overall performance, 0-100." },
+                pronunciation: { type: "number", description: "Pronunciation, 0-100." },
+                vocabulary: { type: "number", description: "Vocabulary use, 0-100." },
+                confidence: { type: "number", description: "Confidence and fluency, 0-100." },
+              },
             },
           },
           required: ["reason", "summary"],

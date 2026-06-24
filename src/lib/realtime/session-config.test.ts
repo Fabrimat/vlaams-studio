@@ -56,3 +56,16 @@ describe("Realtime session config", () => {
     expect(instructions).toContain("Vraagzinnen met 'zou graag'")
   })
 })
+
+describe("end_practice_session scores", () => {
+  const input = { level: "A2" as const, scenarioId: "bakery-antwerp", materialIds: [], mode: "roleplay" as const }
+  it("exposes an optional scores object on the end tool", () => {
+    const config = buildRealtimeSessionConfig(input)
+    const endTool = config.tools.find((t) => t.name === "end_practice_session")
+    expect(endTool?.parameters.properties.scores).toBeDefined()
+    expect(endTool?.parameters.required).not.toContain("scores")
+  })
+  it("asks the model to include scores when ending", () => {
+    expect(buildRealtimeInstructions(input).toLowerCase()).toContain("scores")
+  })
+})
