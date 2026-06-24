@@ -10,6 +10,10 @@ export const runtime = "nodejs"
 
 const defaultBaseUrl = "https://api.openai.com/v1"
 
+export function GET() {
+  return NextResponse.json({ configured: Boolean(process.env.OPENAI_API_KEY) })
+}
+
 function getOpenAIBaseUrl() {
   return (process.env.OPENAI_BASE_URL ?? defaultBaseUrl).replace(/\/$/, "")
 }

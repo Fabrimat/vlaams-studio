@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { POST } from "@/app/api/realtime/session/route"
+import { GET, POST } from "@/app/api/realtime/session/route"
 
 const validRequest = {
   level: "A1",
@@ -29,5 +29,23 @@ describe("POST /api/realtime/session", () => {
     await expect(response.json()).resolves.toEqual({
       error: "OPENAI_API_KEY is required for Realtime sessions.",
     })
+  })
+})
+
+describe("GET /api/realtime/session", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it("reports configured:true when a key is set", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test")
+    const res = await GET()
+    expect(await res.json()).toEqual({ configured: true })
+  })
+
+  it("reports configured:false when no key is set", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "")
+    const res = await GET()
+    expect(await res.json()).toEqual({ configured: false })
   })
 })
