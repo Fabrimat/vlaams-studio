@@ -16,6 +16,7 @@ export const nl = {
   "status.error": "VERBINDING MISLUKT",
 
   "scenario.current": "Huidig scenario",
+  "scenario.active": "Actief",
 
   "phase.idle": "Ik luister…",
   "phase.listening": "Ik luister…",
@@ -45,6 +46,7 @@ export const nl = {
   "alert.micError.hint": "In Chrome: klik op het site-icoon links van de URL, zet Microphone op Allow en probeer opnieuw.",
   "alert.retry": "Opnieuw proberen",
 
+  "conv.transcriptAria": "Gesprekstranscript",
   "conv.title": "Gesprek",
   "conv.live": "Live",
   "conv.preview": "Voorbeeld",

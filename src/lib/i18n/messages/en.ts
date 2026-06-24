@@ -18,6 +18,7 @@ export const en: Record<MessageKey, string> = {
   "status.error": "CONNECTION FAILED",
 
   "scenario.current": "Current scenario",
+  "scenario.active": "Active",
 
   "phase.idle": "I'm listening…",
   "phase.listening": "I'm listening…",
@@ -47,6 +48,7 @@ export const en: Record<MessageKey, string> = {
   "alert.micError.hint": "In Chrome: click the site icon to the left of the URL, set Microphone to Allow, and try again.",
   "alert.retry": "Try again",
 
+  "conv.transcriptAria": "Conversation transcript",
   "conv.title": "Conversation",
   "conv.live": "Live",
   "conv.preview": "Preview",
