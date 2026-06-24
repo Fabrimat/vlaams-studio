@@ -34,6 +34,10 @@ describe("sanitizeHistory", () => {
     expect(result).toHaveLength(1)
     expect(result[0].id).toBe("s1")
   })
+  it("drops entries with a missing or non-string level", () => {
+    const { level, ...noLevel } = record()
+    expect(sanitizeHistory([noLevel, record({ level: 42 as unknown as SessionRecord["level"] })])).toEqual([])
+  })
 })
 
 describe("appendSession", () => {

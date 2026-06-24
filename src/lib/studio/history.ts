@@ -31,6 +31,7 @@ function isRecord(value: unknown): value is SessionRecord {
     typeof r.startedAt === "string" &&
     typeof r.endedAt === "string" &&
     typeof r.durationSec === "number" &&
+    typeof r.level === "string" && r.level.length > 0 &&
     typeof r.scenarioId === "string" &&
     typeof r.scenarioTitle === "string" &&
     (r.source === "voice" || r.source === "manual") &&
@@ -63,6 +64,7 @@ function persist(records: SessionRecord[]) {
 }
 
 export function appendSession(record: SessionRecord): SessionRecord[] {
+  if (typeof window === "undefined") return []
   const next = [record, ...loadHistory()].slice(0, HISTORY_CAP)
   persist(next)
   return next
@@ -90,5 +92,5 @@ function getSnapshot() {
 
 export function useHistory(): SessionRecord[] {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, () => "[]")
-  return sanitizeHistory(JSON.parse(snapshot || "[]"))
+  return sanitizeHistory(JSON.parse(snapshot))
 }
