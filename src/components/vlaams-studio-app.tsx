@@ -56,7 +56,9 @@ import {
   sanitizeStringArray,
   parsePreferencesSnapshot,
   resolveDefaultUiLanguage,
+  initialsFor,
 } from "@/lib/studio/preferences"
+import { type SessionRecord, useHistory, lifetimeStats } from "@/lib/studio/history"
 import { LanguageProvider, useT } from "@/lib/i18n/provider"
 import { locales, uiLanguages, isUiLanguage, type MessageKey } from "@/lib/i18n/locales"
 import { translationLanguages, isTranslationLanguage } from "@/lib/i18n/languages"
@@ -68,9 +70,6 @@ const levelStorageKey = "vlaams-studio-level"
 const scenarioStorageKey = "vlaams-studio-scenario"
 const studioStateStorageKey = "vlaams-studio-state-v1"
 const preferenceChangeEvent = "vlaams-studio-preferences-change"
-
-const learnerName = "Oleksandr T."
-const learnerInitials = "OT"
 
 type UploadState = {
   status: "idle" | "uploading" | "success" | "error"
@@ -90,6 +89,8 @@ type ActivePanel =
   | { type: "setup" }
   | { type: "metric"; metric: FeedbackItem }
   | { type: "grammar"; point: string }
+  | { type: "history" }
+  | { type: "session"; record: SessionRecord }
   | null
 
 const seedExchange: SeedExchange = {
@@ -393,6 +394,9 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
   useEffect(() => {
     tRef.current = t
   })
+  const learnerName = preferences.name
+  const learnerInitials = initialsFor(preferences.name)
+  const history = useHistory()
   const {
     activeMaterialIds,
     correctionStyle,
@@ -1131,6 +1135,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
       <StudioPanelOverlay
         panel={activePanel}
         preferences={preferences}
+        history={history}
         selectedScenario={selectedScenario}
         materials={materials}
         activeMaterial={activeMaterial}
@@ -1154,6 +1159,8 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
         onSetTranslationLanguage={(language) =>
           updatePreferences((current) => ({ ...current, translationLanguage: language }))
         }
+        onSetName={(name) => updatePreferences((current) => ({ ...current, name }))}
+        onOpenHistory={() => setActivePanel({ type: "history" })}
       />
     </main>
   )
@@ -1408,6 +1415,7 @@ function CorrectionCard({
 function StudioPanelOverlay({
   panel,
   preferences,
+  history,
   selectedScenario,
   materials,
   activeMaterial,
@@ -1421,9 +1429,12 @@ function StudioPanelOverlay({
   onSetUseMaterial,
   onSetUiLanguage,
   onSetTranslationLanguage,
+  onSetName,
+  onOpenHistory,
 }: {
   panel: ActivePanel
   preferences: PracticePreferences
+  history: SessionRecord[]
   selectedScenario: Scenario
   materials: LessonMaterialSummary[]
   activeMaterial?: LessonMaterialSummary
@@ -1437,6 +1448,8 @@ function StudioPanelOverlay({
   onSetUseMaterial: (checked: boolean) => void
   onSetUiLanguage: (language: PracticePreferences["uiLanguage"]) => void
   onSetTranslationLanguage: (language: string) => void
+  onSetName: (name: string) => void
+  onOpenHistory: () => void
 }) {
   const t = useT()
 
@@ -1468,11 +1481,19 @@ function StudioPanelOverlay({
             <div className="space-y-5">
               <div className="flex items-center gap-4">
                 <span className="grid size-12 place-items-center rounded-full bg-[#607568] text-[13px] font-semibold text-white">
-                  {learnerInitials}
+                  {initialsFor(preferences.name)}
                 </span>
-                <div>
-                  <p className="text-[15px] font-semibold">{learnerName}</p>
-                  <p className="text-[13px] text-[#8a8e87]">
+                <div className="flex-1 min-w-0">
+                  <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87] mb-1">
+                    {t("profile.editName")}
+                  </label>
+                  <input
+                    type="text"
+                    value={preferences.name}
+                    onChange={(event) => onSetName(event.currentTarget.value)}
+                    className="w-full rounded-[6px] border border-[#e0ddd2] bg-white px-3 py-1.5 text-[14px] font-semibold text-[#1f2420] focus:border-[#2f6f57] focus:outline-none"
+                  />
+                  <p className="mt-1 text-[13px] text-[#8a8e87]">
                     {t("profile.streakSummary", { days: preferences.streakDays, progress: preferences.progress[preferences.selectedLevel], level: preferences.selectedLevel })}
                   </p>
                 </div>
@@ -1480,6 +1501,18 @@ function StudioPanelOverlay({
               <PanelStat label={t("profile.currentLevel")} value={preferences.selectedLevel} note={selectedScenario.topicCategory} />
               <PanelStat label={t("profile.sessionScore")} value={`${preferences.sessionScore} / 100`} note={t("profile.lastSession")} />
               <PanelStat label={t("profile.activeGoals")} value={`${preferences.selectedVocabularyGoals.length}`} note={preferences.selectedVocabularyGoals.join(", ")} />
+              {(() => {
+                const stats = lifetimeStats(history)
+                return (
+                  <>
+                    <PanelStat label={t("profile.lifetimeSessions")} value={`${stats.totalSessions}`} note={t("profile.lifetimeTime") + ": " + t("profile.minutesShort", { n: Math.round(stats.totalDurationSec / 60) })} />
+                    <PanelStat label={t("profile.bestScore")} value={`${stats.bestOverall}`} note="/ 100" />
+                  </>
+                )
+              })()}
+              <div className="flex justify-end">
+                <PanelButton onClick={onOpenHistory}>{t("profile.viewHistory")}</PanelButton>
+              </div>
             </div>
           )}
 

@@ -1,7 +1,7 @@
 import type { MessageKey } from "@/lib/i18n/locales"
 import type { FeedbackItem, Scenario } from "@/lib/practice-data"
 
-export type StudioPanelType = "profile" | "settings" | "reset" | "setup" | "metric" | "grammar"
+export type StudioPanelType = "profile" | "settings" | "reset" | "setup" | "metric" | "grammar" | "history" | "session"
 
 export function updateVocabularyGoals(currentGoals: string[], goal: string) {
   const exists = currentGoals.includes(goal)
@@ -25,6 +25,8 @@ export function panelTitleFor(
   if (panel.type === "reset") return "panel.title.reset"
   if (panel.type === "setup") return "panel.title.setup"
   if (panel.type === "grammar") return "panel.title.grammar"
+  if (panel.type === "history") return "panel.title.history"
+  if (panel.type === "session") return "panel.title.session"
   return panel.metric?.label ?? "panel.title.detailsFallback"
 }
 
