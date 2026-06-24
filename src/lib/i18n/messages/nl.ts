@@ -70,6 +70,7 @@ export const nl = {
 
   "session.scoreEyebrow": "Sessiescore",
   "session.goingWell": "Goed bezig",
+  "session.empty": "Nog geen oefensessie afgerond. Start je eerste sessie om je score en feedback te zien.",
   "common.details": "Details",
 
   "material.eyebrow": "Lesmateriaal",

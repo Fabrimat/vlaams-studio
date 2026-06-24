@@ -22,7 +22,7 @@ export type PracticePreferences = {
   translationLanguage: string
 }
 
-export const defaultProgress: PracticeProgress = { A1: 38, A2: 64, B1: 29, B2: 12 }
+export const defaultProgress: PracticeProgress = { A1: 0, A2: 0, B1: 0, B2: 0 }
 export const defaultLevel: PracticeLevel = "A2"
 export const defaultScenarioId = "bakery-antwerp"
 
@@ -31,8 +31,8 @@ export const defaultPreferences: PracticePreferences = {
   selectedScenarioId: defaultScenarioId,
   name: "",
   progress: defaultProgress,
-  streakDays: 7,
-  sessionScore: 78,
+  streakDays: 0,
+  sessionScore: 0,
   feedback: seedFeedback,
   useMaterialInSession: true,
   activeMaterialIds: ["sample-bakery"],

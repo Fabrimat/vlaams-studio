@@ -667,11 +667,11 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
     "font-serif text-[34px] leading-[38px] tracking-tight text-[#1f2420] sm:text-[38px] sm:leading-[42px]"
 
   return (
-    <main className="min-h-[100dvh] overflow-x-hidden bg-[#f4f1ea] text-[#1f2420]">
+    <main className="min-h-[100dvh] overflow-x-clip bg-[#f4f1ea] text-[#1f2420]">
       <div className="grid min-h-[100dvh] w-full grid-cols-1 lg:grid-cols-[244px_minmax(0,1fr)_390px]">
         {/* LEFT RAIL */}
-        <aside className="border-b border-[#e0ddd2] bg-[#f4f1ea] px-5 py-6 sm:px-7 sm:py-7 lg:sticky lg:top-0 lg:min-h-[100dvh] lg:border-b-0 lg:border-r">
-          <div className="flex h-full flex-col gap-5">
+        <aside className="border-b border-[#e0ddd2] bg-[#f4f1ea] px-5 py-6 sm:px-7 sm:py-7 lg:sticky lg:top-0 lg:self-start lg:max-h-[100dvh] lg:overflow-y-auto lg:border-b-0">
+          <div className="flex flex-col gap-5">
             <p className="text-[18px] font-semibold leading-none tracking-tight text-[#1f2420]">
               Vlaams Studio
             </p>
@@ -767,7 +767,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
               </div>
             </Section>
 
-            <div className="-mx-5 mt-auto border-t border-[#e0ddd2] sm:-mx-7">
+            <div className="-mx-5 mt-1 border-t border-[#e0ddd2] sm:-mx-7">
               <button
                 type="button"
                 onClick={() => setActivePanel({ type: "profile" })}
@@ -793,7 +793,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
         </aside>
 
         {/* CENTER */}
-        <section className="min-w-0 bg-[#fbfaf6] px-6 py-5 sm:px-8 lg:min-h-[100dvh] lg:px-16 lg:py-10">
+        <section className="min-w-0 bg-[#fbfaf6] px-6 py-5 sm:px-8 lg:min-h-[100dvh] lg:border-x lg:border-[#e0ddd2] lg:px-16 lg:py-10">
           <div className="mx-auto w-full max-w-[1120px]">
           <header className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full bg-transparent text-[11px] font-semibold uppercase tracking-[0.16em] text-[#5a615b]">
@@ -994,6 +994,12 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
             onToggleSeedCorrectionNote={() => setShowCorrectionNote((value) => !value)}
           />
 
+          {history.length === 0 ? (
+            <div className="mt-4 rounded-[8px] border border-dashed border-[#d6d1c3] bg-white px-5 py-8 text-center text-[13px] leading-[20px] text-[#8a8e87]">
+              {t("session.empty")}
+            </div>
+          ) : (
+          <>
           <div className="mt-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
@@ -1043,6 +1049,8 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
               </div>
             ))}
           </div>
+          </>
+          )}
           </div>
         </section>
 
@@ -1050,7 +1058,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
             content sits directly on the ivory background. The only surfaces with
             their own card are the file upload (functional grouping) and the
             teacher note (visual emphasis). */}
-        <aside className="border-t border-[#e0ddd2] bg-[#f4f1ea] lg:sticky lg:top-0 lg:min-h-[100dvh] lg:border-l lg:border-t-0">
+        <aside className="border-t border-[#e0ddd2] bg-[#f4f1ea] lg:sticky lg:top-0 lg:self-start lg:max-h-[100dvh] lg:overflow-y-auto lg:border-t-0">
           <RailSection eyebrow={t("material.eyebrow")} first>
             <div className="rounded-[8px] border border-dashed border-[#d6d1c3] bg-white px-4 py-4">
               <div className="grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-4">

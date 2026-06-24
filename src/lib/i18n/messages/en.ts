@@ -72,6 +72,7 @@ export const en: Record<MessageKey, string> = {
 
   "session.scoreEyebrow": "Session score",
   "session.goingWell": "Going well",
+  "session.empty": "No practice session completed yet. Start your first session to see your score and feedback.",
   "common.details": "Details",
 
   "material.eyebrow": "Lesson material",
