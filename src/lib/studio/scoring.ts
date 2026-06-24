@@ -15,11 +15,10 @@ function noteFor(score: number): string {
 
 function toMetrics(pronunciation: number, vocabulary: number, confidence: number): FeedbackItem[] {
   const scores = [pronunciation, vocabulary, confidence]
-  return metricLabels.map((label, i) => ({
-    label,
-    score: clamp(Math.round(scores[i]), 0, 100),
-    note: noteFor(scores[i]),
-  }))
+  return metricLabels.map((label, i) => {
+    const clamped = clamp(Math.round(scores[i]), 0, 100)
+    return { label, score: clamped, note: noteFor(clamped) }
+  })
 }
 
 export function metricsFromActivity(a: Activity) {

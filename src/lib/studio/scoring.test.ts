@@ -43,4 +43,15 @@ describe("scoresFromPayload", () => {
   it("falls back when payload is null", () => {
     expect(scoresFromPayload(null, activity)).toEqual(metricsFromActivity(activity))
   })
+  it("clamps out-of-range model scores into 0..100", () => {
+    const result = scoresFromPayload(
+      { reason: "r", summary: "s", scores: { overall: 150, pronunciation: 120, vocabulary: -10, confidence: 50 } },
+      activity,
+    )
+    expect(result.overall).toBe(100)
+    for (const m of result.metrics) {
+      expect(m.score).toBeGreaterThanOrEqual(0)
+      expect(m.score).toBeLessThanOrEqual(100)
+    }
+  })
 })
