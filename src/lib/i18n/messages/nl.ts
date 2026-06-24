@@ -124,7 +124,7 @@ export const nl = {
   "settings.uiLanguage": "Interfacetaal",
   "settings.translationLanguage": "Vertaaltaal",
 
-  "reset.body": "Er is geen account in deze lokale MVP. Deze actie reset alleen je lokale niveau, scenario, score, doelen en sessiestatus.",
+  "reset.body": "Er is geen account in deze lokale MVP. Deze actie wist je naam, oefengeschiedenis en alle lokale voortgang volledig. Je taalinstelling blijft bewaard.",
   "reset.cancel": "Annuleren",
   "reset.confirm": "Reset lokaal",
 

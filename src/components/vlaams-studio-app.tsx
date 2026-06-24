@@ -58,7 +58,7 @@ import {
   resolveDefaultUiLanguage,
   initialsFor,
 } from "@/lib/studio/preferences"
-import { type SessionRecord, useHistory, lifetimeStats, appendSession, computeStreak, computeWeekdayDots } from "@/lib/studio/history"
+import { type SessionRecord, useHistory, lifetimeStats, appendSession, computeStreak, computeWeekdayDots, clearHistory } from "@/lib/studio/history"
 import { buildSessionRecord } from "@/lib/studio/session-record"
 import { buildManualTranscript } from "@/lib/studio/manual-session"
 import { LanguageProvider, useT } from "@/lib/i18n/provider"
@@ -589,6 +589,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
       uiLanguage: current.uiLanguage,
       translationLanguage: current.translationLanguage,
     })
+    clearHistory()
     setUploadState({ status: "idle", message: t("reset.done") })
     setActivePanel(null)
   }

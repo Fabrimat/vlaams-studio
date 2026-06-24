@@ -126,7 +126,7 @@ export const en: Record<MessageKey, string> = {
   "settings.uiLanguage": "Interface language",
   "settings.translationLanguage": "Translation language",
 
-  "reset.body": "There is no account in this local MVP. This only resets your local level, scenario, score, goals and session state.",
+  "reset.body": "There is no account in this local MVP. This clears your name, session history, and all local progress. Your language setting is preserved.",
   "reset.cancel": "Cancel",
   "reset.confirm": "Reset local",
 
