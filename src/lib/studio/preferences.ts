@@ -42,6 +42,14 @@ export const defaultPreferences: PracticePreferences = {
   translationLanguage: "en",
 }
 
+export function resolveDefaultUiLanguage(): UiLanguage {
+  if (typeof navigator !== "undefined" && typeof navigator.language === "string") {
+    const primary = navigator.language.toLowerCase().split("-")[0]
+    if (isUiLanguage(primary)) return primary
+  }
+  return "en"
+}
+
 export function sanitizeFeedback(items: unknown): FeedbackItem[] {
   if (!Array.isArray(items)) return seedFeedback
 
@@ -104,7 +112,7 @@ export function parsePreferencesSnapshot(snapshot: string): PracticePreferences 
       uiLanguage:
         typeof parsed.uiLanguage === "string" && isUiLanguage(parsed.uiLanguage)
           ? parsed.uiLanguage
-          : defaultPreferences.uiLanguage,
+          : resolveDefaultUiLanguage(),
       translationLanguage:
         typeof parsed.translationLanguage === "string" && isTranslationLanguage(parsed.translationLanguage)
           ? parsed.translationLanguage

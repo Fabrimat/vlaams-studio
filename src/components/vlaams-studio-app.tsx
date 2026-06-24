@@ -55,6 +55,7 @@ import {
   sanitizeFeedback,
   sanitizeStringArray,
   parsePreferencesSnapshot,
+  resolveDefaultUiLanguage,
 } from "@/lib/studio/preferences"
 import { LanguageProvider, useT } from "@/lib/i18n/provider"
 import { locales, uiLanguages, isUiLanguage, type MessageKey } from "@/lib/i18n/locales"
@@ -189,7 +190,7 @@ function readStoredPreferences(): PracticePreferences {
     uiLanguage:
       typeof storedState.uiLanguage === "string" && isUiLanguage(storedState.uiLanguage)
         ? storedState.uiLanguage
-        : defaultPreferences.uiLanguage,
+        : resolveDefaultUiLanguage(),
     translationLanguage:
       typeof storedState.translationLanguage === "string" && isTranslationLanguage(storedState.translationLanguage)
         ? storedState.translationLanguage
@@ -527,7 +528,12 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
 
   function resetLocalSessionState() {
     if (isLive) realtime.disconnect()
-    savePreferences(cloneDefaultPreferences(defaultPreferences))
+    const current = readStoredPreferences()
+    savePreferences({
+      ...cloneDefaultPreferences(defaultPreferences),
+      uiLanguage: current.uiLanguage,
+      translationLanguage: current.translationLanguage,
+    })
     setUploadState({ status: "idle", message: t("reset.done") })
     setActivePanel(null)
   }
