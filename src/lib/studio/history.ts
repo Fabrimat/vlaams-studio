@@ -94,3 +94,52 @@ export function useHistory(): SessionRecord[] {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, () => "[]")
   return sanitizeHistory(JSON.parse(snapshot))
 }
+
+const WEEKDAY_LETTERS = ["M", "D", "W", "D", "V", "Z", "Z"] // Mon..Sun (Dutch shorthand, per DESIGN.md)
+
+function localDayKey(date: Date): string {
+  const y = date.getFullYear()
+  const m = `${date.getMonth() + 1}`.padStart(2, "0")
+  const d = `${date.getDate()}`.padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+function daySet(records: SessionRecord[]): Set<string> {
+  return new Set(records.map((r) => localDayKey(new Date(r.startedAt))))
+}
+
+export function computeStreak(records: SessionRecord[], today: Date): number {
+  const days = daySet(records)
+  const cursor = new Date(today)
+  // The streak may start today or yesterday (a not-yet-practiced today shouldn't reset it).
+  if (!days.has(localDayKey(cursor))) cursor.setDate(cursor.getDate() - 1)
+  let streak = 0
+  while (days.has(localDayKey(cursor))) {
+    streak += 1
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  return streak
+}
+
+export function computeWeekdayDots(
+  records: SessionRecord[],
+  today: Date,
+): Array<{ letter: string; active: boolean }> {
+  const days = daySet(records)
+  const monday = new Date(today)
+  const offsetToMonday = (today.getDay() + 6) % 7 // Sun=0 -> 6, Mon=1 -> 0
+  monday.setDate(today.getDate() - offsetToMonday)
+  return WEEKDAY_LETTERS.map((letter, index) => {
+    const day = new Date(monday)
+    day.setDate(monday.getDate() + index)
+    return { letter, active: days.has(localDayKey(day)) }
+  })
+}
+
+export function lifetimeStats(records: SessionRecord[]) {
+  return {
+    totalSessions: records.length,
+    totalDurationSec: records.reduce((sum, r) => sum + r.durationSec, 0),
+    bestOverall: records.reduce((best, r) => Math.max(best, r.scores.overall), 0),
+  }
+}
