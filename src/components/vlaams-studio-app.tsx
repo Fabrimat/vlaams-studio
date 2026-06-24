@@ -541,7 +541,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
         setManualSession(null)
         return
       }
-      recordSession(null, "voice", realtime.transcript)
+      recordSession(null, "voice", realtime.getTranscript())
       realtime.disconnect()
       return
     }
@@ -552,6 +552,8 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
       setManualSession({ startedAt, turns: buildManualTranscript(selectedScenario) })
       return
     }
+
+    if (hasApiKey === null) return
 
     await realtime.connect({
       level: selectedLevel,
@@ -925,7 +927,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
                       recordSession(null, "manual", manualSession.turns)
                       setManualSession(null)
                     } else {
-                      recordSession(null, "voice", realtime.transcript)
+                      recordSession(null, "voice", realtime.getTranscript())
                       realtime.disconnect()
                     }
                   }}

@@ -363,6 +363,8 @@ export function useRealtimeSession(options?: {
     setIsMuted(nextMuted)
   }, [isMuted])
 
+  const getTranscript = useCallback(() => transcriptRef.current, [])
+
   return {
     status,
     phase,
@@ -372,5 +374,6 @@ export function useRealtimeSession(options?: {
     connect,
     disconnect,
     toggleMute,
+    getTranscript,
   }
 }
