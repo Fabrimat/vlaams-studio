@@ -24,6 +24,7 @@ export type SessionEndPayload = {
   reason: string
   summary: string
   nextStep?: string
+  scores?: { overall: number; pronunciation: number; vocabulary: number; confidence: number }
 }
 
 export type TranscriptTurn = {
@@ -156,10 +157,25 @@ export function parseSessionEndArguments(rawArguments: string): SessionEndPayloa
 
     if (!reason || !summary) return null
 
+    const rawScores = parsed.scores
+    let scores: SessionEndPayload["scores"]
+    if (isObject(rawScores)) {
+      const nums = [rawScores.overall, rawScores.pronunciation, rawScores.vocabulary, rawScores.confidence]
+      if (nums.every((n) => typeof n === "number" && Number.isFinite(n))) {
+        scores = {
+          overall: rawScores.overall as number,
+          pronunciation: rawScores.pronunciation as number,
+          vocabulary: rawScores.vocabulary as number,
+          confidence: rawScores.confidence as number,
+        }
+      }
+    }
+
     return {
       reason,
       summary,
       ...(nextStep ? { nextStep } : {}),
+      ...(scores ? { scores } : {}),
     }
   } catch {
     return null

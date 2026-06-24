@@ -210,3 +210,20 @@ describe("Realtime event reducer", () => {
     })
   })
 })
+
+describe("parseSessionEndArguments scores", () => {
+  it("parses a complete scores object", () => {
+    const parsed = parseSessionEndArguments(
+      JSON.stringify({ reason: "r", summary: "s", scores: { overall: 80, pronunciation: 70, vocabulary: 90, confidence: 75 } }),
+    )
+    expect(parsed?.scores).toEqual({ overall: 80, pronunciation: 70, vocabulary: 90, confidence: 75 })
+  })
+  it("omits scores when incomplete", () => {
+    const parsed = parseSessionEndArguments(JSON.stringify({ reason: "r", summary: "s", scores: { overall: 80 } }))
+    expect(parsed?.scores).toBeUndefined()
+  })
+  it("still parses payloads without scores", () => {
+    const parsed = parseSessionEndArguments(JSON.stringify({ reason: "r", summary: "s" }))
+    expect(parsed).toEqual({ reason: "r", summary: "s" })
+  })
+})
