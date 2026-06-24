@@ -67,3 +67,33 @@ describe("parsePreferencesSnapshot with browser language resolver", () => {
     expect(parsePreferencesSnapshot(snap).uiLanguage).toBe("en")
   })
 })
+
+import { initialsFor } from "@/lib/studio/preferences"
+
+describe("preferences name field", () => {
+  it("defaults name to an empty string", () => {
+    expect(defaultPreferences.name).toBe("")
+  })
+
+  it("keeps and trims a stored name", () => {
+    const snap = JSON.stringify({ ...defaultPreferences, name: "  Fabrizio La Rosa  " })
+    expect(parsePreferencesSnapshot(snap).name).toBe("Fabrizio La Rosa")
+  })
+
+  it("falls back to empty string for a non-string name", () => {
+    const snap = JSON.stringify({ ...defaultPreferences, name: 42 })
+    expect(parsePreferencesSnapshot(snap).name).toBe("")
+  })
+})
+
+describe("initialsFor", () => {
+  it("uses first letters of first and last word for multi-word names", () => {
+    expect(initialsFor("Fabrizio La Rosa")).toBe("FR")
+  })
+  it("uses the first two letters of a single-word name", () => {
+    expect(initialsFor("Fabrizio")).toBe("FA")
+  })
+  it("returns empty string for an empty name", () => {
+    expect(initialsFor("   ")).toBe("")
+  })
+})

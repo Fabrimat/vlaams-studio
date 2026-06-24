@@ -162,6 +162,7 @@ function readStoredPreferences(): PracticePreferences {
   return {
     selectedLevel: selectedScenario?.level ?? loadStoredLevel(),
     selectedScenarioId,
+    name: typeof storedState.name === "string" ? storedState.name : defaultPreferences.name,
     progress: loadStoredProgress(),
     streakDays:
       typeof storedState.streakDays === "number" && Number.isFinite(storedState.streakDays)

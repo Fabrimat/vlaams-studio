@@ -7,6 +7,7 @@ export type PracticeProgress = Record<PracticeLevel, number>
 export type PracticePreferences = {
   selectedLevel: PracticeLevel
   selectedScenarioId: string
+  name: string
   progress: PracticeProgress
   streakDays: number
   sessionScore: number
@@ -28,6 +29,7 @@ export const defaultScenarioId = "bakery-antwerp"
 export const defaultPreferences: PracticePreferences = {
   selectedLevel: defaultLevel,
   selectedScenarioId: defaultScenarioId,
+  name: "",
   progress: defaultProgress,
   streakDays: 7,
   sessionScore: 78,
@@ -84,6 +86,7 @@ export function parsePreferencesSnapshot(snapshot: string): PracticePreferences 
     return {
       selectedLevel: selectedScenario?.level ?? defaultLevel,
       selectedScenarioId,
+      name: typeof parsed.name === "string" ? parsed.name.trim() : defaultPreferences.name,
       progress: { ...defaultProgress, ...parsed.progress },
       streakDays:
         typeof parsed.streakDays === "number" && Number.isFinite(parsed.streakDays)
@@ -121,4 +124,11 @@ export function parsePreferencesSnapshot(snapshot: string): PracticePreferences 
   } catch {
     return defaultPreferences
   }
+}
+
+export function initialsFor(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return ""
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase()
 }
