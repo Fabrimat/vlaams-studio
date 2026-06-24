@@ -61,6 +61,7 @@ import { LanguageProvider, useT } from "@/lib/i18n/provider"
 import { locales, uiLanguages, isUiLanguage, type MessageKey } from "@/lib/i18n/locales"
 import { translationLanguages, isTranslationLanguage } from "@/lib/i18n/languages"
 import { Translatable } from "@/components/translatable"
+import { WelcomeScreen } from "@/components/welcome-screen"
 
 const progressStorageKey = "vlaams-studio-progress-v2"
 const levelStorageKey = "vlaams-studio-level"
@@ -378,7 +379,9 @@ export function VlaamsStudioApp() {
 
   return (
     <LanguageProvider language={preferences.uiLanguage}>
-      <VlaamsStudioAppContent preferences={preferences} />
+      {preferences.name
+        ? <VlaamsStudioAppContent preferences={preferences} />
+        : <WelcomeScreen onSubmit={(name) => updatePreferences((current) => ({ ...current, name }))} />}
     </LanguageProvider>
   )
 }

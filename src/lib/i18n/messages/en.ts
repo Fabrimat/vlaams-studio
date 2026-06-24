@@ -134,4 +134,9 @@ export const en: Record<MessageKey, string> = {
   "content.hideTranslation": "Hide translation",
   "content.translating": "Translating…",
   "content.translationFailed": "Translation failed",
+
+  "welcome.title": "Welcome to Vlaams Studio",
+  "welcome.subtitle": "What should we call you?",
+  "welcome.namePlaceholder": "Your name",
+  "welcome.start": "Start practicing",
 }

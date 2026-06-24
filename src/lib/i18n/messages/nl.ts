@@ -132,6 +132,11 @@ export const nl = {
   "content.hideTranslation": "Verberg vertaling",
   "content.translating": "Vertalen…",
   "content.translationFailed": "Vertaling mislukt",
+
+  "welcome.title": "Welkom bij Vlaams Studio",
+  "welcome.subtitle": "Hoe mogen we je noemen?",
+  "welcome.namePlaceholder": "Je naam",
+  "welcome.start": "Start met oefenen",
 } as const
 
 export type MessageKey = keyof typeof nl
