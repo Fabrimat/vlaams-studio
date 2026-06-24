@@ -1225,6 +1225,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
         }
         onSetName={(name) => updatePreferences((current) => ({ ...current, name }))}
         onOpenHistory={() => setActivePanel({ type: "history" })}
+        onOpenSession={(record) => setActivePanel({ type: "session", record })}
       />
     </main>
   )
@@ -1496,6 +1497,7 @@ function StudioPanelOverlay({
   onSetTranslationLanguage,
   onSetName,
   onOpenHistory,
+  onOpenSession,
 }: {
   panel: ActivePanel
   preferences: PracticePreferences
@@ -1516,6 +1518,7 @@ function StudioPanelOverlay({
   onSetTranslationLanguage: (language: string) => void
   onSetName: (name: string) => void
   onOpenHistory: () => void
+  onOpenSession: (record: SessionRecord) => void
 }) {
   const t = useT()
 
@@ -1773,6 +1776,146 @@ function StudioPanelOverlay({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {panel.type === "history" && (
+            <div>
+              {history.length === 0 ? (
+                <p className="text-[14px] leading-[22px] text-[#5a615b]">{t("history.empty")}</p>
+              ) : (
+                <ul className="space-y-2">
+                  {history.map((record) => (
+                    <li key={record.id}>
+                      <button
+                        type="button"
+                        onClick={() => onOpenSession(record)}
+                        className="flex w-full items-start justify-between gap-3 rounded-[8px] border border-[#e0ddd2] bg-white px-4 py-3 text-left transition hover:border-[#2f6f57]"
+                      >
+                        <span className="flex flex-col gap-1">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a8e87]">
+                            {new Date(record.startedAt).toLocaleDateString()}
+                          </span>
+                          <span className="text-[14px] font-semibold text-[#1f2420]">{record.scenarioTitle}</span>
+                          <span className="text-[12px] text-[#5a615b]">
+                            {record.level} &middot; {t("profile.minutesShort", { n: Math.round(record.durationSec / 60) })} &middot; {record.scores.overall} / 100
+                          </span>
+                        </span>
+                        <span className="mt-0.5 shrink-0 rounded-md border border-[#e0ddd2] bg-[#f4f1ea] px-2 py-1 text-[11px] font-medium text-[#5a615b]">
+                          {record.source === "voice" ? t("history.sourceVoice") : t("history.sourceManual")}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {panel.type === "session" && (
+            <div className="space-y-5">
+              <div>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
+                  {t("session.scoreEyebrow")}
+                </p>
+                <div className="flex items-end gap-4">
+                  <p className="tabular text-[32px] font-medium leading-none text-[#1f2420]">
+                    {panel.record.scores.overall} <span className="text-[#8a8e87]"> / 100</span>
+                  </p>
+                  <div className="flex-1 pb-1.5">
+                    <ScoreBar value={panel.record.scores.overall} />
+                  </div>
+                </div>
+              </div>
+
+              {panel.record.scores.metrics.length > 0 && (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {panel.record.scores.metrics.map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-[8px] border border-[#dcd8cb] bg-[#ece7d9] p-3.5"
+                    >
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
+                        {item.label}
+                      </p>
+                      <p
+                        className={cn(
+                          "tabular mt-2 text-[24px] font-semibold leading-none",
+                          scoreColor(item.score),
+                        )}
+                      >
+                        {item.score}
+                        <span className="text-[14px] font-medium text-[#8a8e87]"> / 100</span>
+                      </p>
+                      <p className="mt-2 text-[13px] leading-[18px] text-[#5a615b]">{item.note}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {panel.record.summary && (
+                <div className="rounded-[8px] border border-[#e0ddd2] bg-white p-4">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
+                    {t("history.summary")}
+                  </p>
+                  <p className="text-[13px] leading-[21px] text-[#5a615b]">{panel.record.summary}</p>
+                </div>
+              )}
+
+              {panel.record.nextStep && (
+                <div className="rounded-[8px] border border-[#e0ddd2] bg-white p-4">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
+                    {t("history.nextStep")}
+                  </p>
+                  <p className="text-[13px] leading-[21px] text-[#5a615b]">{panel.record.nextStep}</p>
+                </div>
+              )}
+
+              {panel.record.materialsUsed.length > 0 && (
+                <div className="rounded-[8px] border border-[#e0ddd2] bg-white p-4">
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
+                    {t("history.materialsUsed")}
+                  </p>
+                  <ul className="space-y-1">
+                    {panel.record.materialsUsed.map((title) => (
+                      <li key={title} className="text-[13px] leading-[20px] text-[#5a615b]">{title}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {panel.record.corrections.length > 0 && (
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
+                    {t("history.corrections")}
+                  </p>
+                  <div className="space-y-3">
+                    {panel.record.corrections.map((correction, index) => (
+                      <CorrectionCard key={index} correction={correction} showReason={true} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {panel.record.transcript.length > 0 && (
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
+                    {t("history.transcript")}
+                  </p>
+                  <div className="overflow-hidden rounded-[8px] border border-[#e6e2d6] bg-white">
+                    <div className="divide-y divide-[#ededdf]">
+                      {panel.record.transcript.map((turn) => (
+                        <ConversationTurn
+                          key={turn.id}
+                          turn={turn}
+                          showSeedCorrectionNote={true}
+                          onToggleSeedCorrectionNote={() => {}}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

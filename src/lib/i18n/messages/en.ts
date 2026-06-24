@@ -150,4 +150,13 @@ export const en: Record<MessageKey, string> = {
   "welcome.subtitle": "What should we call you?",
   "welcome.namePlaceholder": "Your name",
   "welcome.start": "Start practicing",
+
+  "history.empty": "No sessions yet. Start a practice session to build your history.",
+  "history.sourceVoice": "Voice",
+  "history.sourceManual": "Practice mode",
+  "history.materialsUsed": "Materials used",
+  "history.summary": "Summary",
+  "history.nextStep": "Next step",
+  "history.transcript": "Transcript",
+  "history.corrections": "Corrections",
 }

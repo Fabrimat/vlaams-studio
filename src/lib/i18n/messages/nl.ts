@@ -148,6 +148,15 @@ export const nl = {
   "welcome.subtitle": "Hoe mogen we je noemen?",
   "welcome.namePlaceholder": "Je naam",
   "welcome.start": "Start met oefenen",
+
+  "history.empty": "Nog geen sessies. Start een oefensessie om je geschiedenis op te bouwen.",
+  "history.sourceVoice": "Stem",
+  "history.sourceManual": "Oefenmodus",
+  "history.materialsUsed": "Gebruikt materiaal",
+  "history.summary": "Samenvatting",
+  "history.nextStep": "Volgende stap",
+  "history.transcript": "Transcript",
+  "history.corrections": "Correcties",
 } as const
 
 export type MessageKey = keyof typeof nl
