@@ -4,7 +4,7 @@ import { scenarios } from "@/lib/practice-data"
 import {
   cloneDefaultPreferences,
   focusForScenario,
-  metricDetailCopy,
+  metricDetailFocus,
   panelTitleFor,
   updateVocabularyGoals,
 } from "@/lib/studio/ui-state"
@@ -25,22 +25,6 @@ describe("studio UI state helpers", () => {
     })
   })
 
-  it("returns panel titles for button-triggered panels", () => {
-    expect(panelTitleFor({ type: "profile" })).toBe("Profiel")
-    expect(
-      panelTitleFor({
-        type: "metric",
-        metric: { label: "Uitspraak", score: 72, note: "Let op: lange klinkers" },
-      }),
-    ).toBe("Uitspraak")
-  })
-
-  it("returns metric detail copy tied to the selected metric", () => {
-    expect(metricDetailCopy({ label: "Woordenschat", score: 81, note: "Sterk" })).toContain(
-      "woordenschat",
-    )
-  })
-
   it("clones default preferences for local reset without sharing references", () => {
     const defaults = { selectedVocabularyGoals: ["broodsoorten"], nested: { score: 78 } }
     const clone = cloneDefaultPreferences(defaults)
@@ -49,5 +33,24 @@ describe("studio UI state helpers", () => {
     clone.nested.score = 10
 
     expect(defaults).toEqual({ selectedVocabularyGoals: ["broodsoorten"], nested: { score: 78 } })
+  })
+})
+
+describe("panelTitleFor", () => {
+  it("maps panel types to message keys", () => {
+    expect(panelTitleFor({ type: "settings" })).toBe("panel.title.settings")
+    expect(panelTitleFor({ type: "reset" })).toBe("panel.title.reset")
+  })
+
+  it("uses the metric label for metric panels", () => {
+    expect(panelTitleFor({ type: "metric", metric: { label: "Uitspraak", score: 1, note: "x" } })).toBe(
+      "Uitspraak",
+    )
+  })
+})
+
+describe("metricDetailFocus", () => {
+  it("returns the lowercased label for interpolation", () => {
+    expect(metricDetailFocus({ label: "Uitspraak", score: 1, note: "x" })).toBe("uitspraak")
   })
 })
