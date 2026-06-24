@@ -29,6 +29,9 @@ export const nl = {
   "phase.missingKey": "API-sleutel ontbreekt",
   "phase.micError": "Microfoon geblokkeerd",
   "phase.error": "Verbinding mislukt",
+  "phase.manual": "Oefenmodus (geen sleutel)",
+
+  "manual.notice": "Oefenmodus zonder live stem. Voeg een API-sleutel toe voor een echt gesprek.",
 
   "control.micOff": "Microfoon weer aan",
   "control.micMute": "Microfoon dempen",

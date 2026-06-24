@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
   applyRealtimeServerEvent,
@@ -13,6 +13,7 @@ import {
   parseSessionEndArguments,
   type RealtimePhase,
   type RealtimeFunctionCall,
+  type SessionEndPayload,
   type TranscriptTurn,
 } from "@/lib/realtime/events"
 import { microphoneErrorMessage } from "@/lib/realtime/microphone"
@@ -25,7 +26,13 @@ type ClientSecretResponse = {
   realtime_call_url: string
 }
 
-export function useRealtimeSession() {
+export function useRealtimeSession(options?: {
+  onEnded?: (payload: SessionEndPayload | null, transcript: TranscriptTurn[]) => void
+}) {
+  const onEndedRef = useRef(options?.onEnded)
+  useEffect(() => {
+    onEndedRef.current = options?.onEnded
+  })
   const peerRef = useRef<RTCPeerConnection | null>(null)
   const dataChannelRef = useRef<RTCDataChannel | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
@@ -110,6 +117,8 @@ export function useRealtimeSession() {
             output: JSON.stringify(output),
           },
         })
+
+        onEndedRef.current?.(sessionEnd, transcriptRef.current)
 
         setPhase("ending")
         endSessionTimerRef.current = window.setTimeout(() => {

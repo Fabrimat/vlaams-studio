@@ -37,7 +37,7 @@ import {
 } from "@/lib/practice-data"
 import { cn } from "@/lib/utils"
 import { useRealtimeSession } from "@/hooks/use-realtime-session"
-import type { CorrectionPayload, TranscriptTurn } from "@/lib/realtime/events"
+import type { CorrectionPayload, SessionEndPayload, TranscriptTurn } from "@/lib/realtime/events"
 import {
   cloneDefaultPreferences,
   focusForScenario,
@@ -58,7 +58,9 @@ import {
   resolveDefaultUiLanguage,
   initialsFor,
 } from "@/lib/studio/preferences"
-import { type SessionRecord, useHistory, lifetimeStats } from "@/lib/studio/history"
+import { type SessionRecord, useHistory, lifetimeStats, appendSession, computeStreak, computeWeekdayDots } from "@/lib/studio/history"
+import { buildSessionRecord } from "@/lib/studio/session-record"
+import { buildManualTranscript } from "@/lib/studio/manual-session"
 import { LanguageProvider, useT } from "@/lib/i18n/provider"
 import { locales, uiLanguages, isUiLanguage, type MessageKey } from "@/lib/i18n/locales"
 import { translationLanguages, isTranslationLanguage } from "@/lib/i18n/languages"
@@ -110,15 +112,6 @@ const scenarioIcons: Record<string, typeof CroissantIcon> = {
   "apartment-viewing": Home,
 }
 
-const weekdayDots: Array<{ letter: string; active: boolean }> = [
-  { letter: "M", active: true },
-  { letter: "D", active: true },
-  { letter: "W", active: true },
-  { letter: "D", active: true },
-  { letter: "V", active: true },
-  { letter: "Z", active: false },
-  { letter: "Z", active: false },
-]
 
 function loadStoredProgress(): PracticeProgress {
   try {
@@ -408,7 +401,6 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
     selectedScenarioId,
     sessionScore,
     showCaptions,
-    streakDays,
     translationLanguage,
     useMaterialInSession,
   } = preferences
@@ -416,11 +408,17 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
   const [uploadState, setUploadState] = useState<UploadState>({ status: "idle", message: null })
   const [showCorrectionNote, setShowCorrectionNote] = useState(true)
   const [activePanel, setActivePanel] = useState<ActivePanel>(null)
-  const realtime = useRealtimeSession()
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null)
+  const [manualSession, setManualSession] = useState<{ startedAt: string; turns: TranscriptTurn[] } | null>(null)
+  const sessionStartRef = useRef<string | null>(null)
+
+  const realtime = useRealtimeSession({
+    onEnded: (payload, turns) => recordSession(payload, "voice", turns),
+  })
 
   const selectedScenario: Scenario =
     scenarios.find((scenario) => scenario.id === selectedScenarioId) ?? scenarios[0]
-  const isLive = realtime.status === "live"
+  const isLive = realtime.status === "live" || manualSession !== null
   const isConnecting = realtime.status === "connecting"
 
   const activeMaterial = materials.find((material) => activeMaterialIds.includes(material.id)) ?? materials[0]
@@ -435,7 +433,13 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
     : selectedScenario.defaultMaterial.size
   const conversationTurns = realtime.transcript.length
     ? realtime.transcript
-    : createSeedConversationTurns(seedExchange, showCorrectionNote)
+    : manualSession
+      ? manualSession.turns
+      : createSeedConversationTurns(seedExchange, showCorrectionNote)
+
+  const today = new Date()
+  const streakDays = computeStreak(history, today)
+  const weekdayDots = computeWeekdayDots(history, today)
 
   useEffect(() => {
     let isActive = true
@@ -470,6 +474,43 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
     }
   }, [])
 
+  useEffect(() => {
+    let active = true
+    fetch("/api/realtime/session")
+      .then((r) => (r.ok ? r.json() : { configured: false }))
+      .then((d: { configured?: boolean }) => { if (active) setHasApiKey(Boolean(d.configured)) })
+      .catch(() => { if (active) setHasApiKey(false) })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    if (realtime.status === "live" && sessionStartRef.current === null) {
+      sessionStartRef.current = new Date().toISOString()
+    }
+  }, [realtime.status])
+
+  function recordSession(payload: SessionEndPayload | null, source: "voice" | "manual", transcript: TranscriptTurn[]) {
+    if (sessionStartRef.current === null) return
+    const record = buildSessionRecord({
+      id: `sess-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      startedAt: sessionStartRef.current,
+      endedAt: new Date().toISOString(),
+      scenario: selectedScenario,
+      source,
+      transcript,
+      payload,
+      materialsUsed: useMaterialInSession ? materials.filter((m) => activeMaterialIds.includes(m.id)).map((m) => m.title) : [],
+    })
+    sessionStartRef.current = null
+    appendSession(record)
+    updatePreferences((current) => ({
+      ...current,
+      sessionScore: record.scores.overall,
+      feedback: record.scores.metrics,
+      progress: { ...current.progress, [record.level]: Math.min(100, current.progress[record.level] + 3) },
+    }))
+  }
+
   function selectLevel(level: PracticeLevel) {
     const nextScenario = scenarios.find((scenario) => scenario.level === level)
     const nextFocus = nextScenario ? focusForScenario(nextScenario) : null
@@ -495,19 +536,20 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
 
   async function handlePracticeToggle() {
     if (isLive) {
+      if (manualSession !== null) {
+        recordSession(null, "manual", manualSession.turns)
+        setManualSession(null)
+        return
+      }
+      recordSession(null, "voice", realtime.transcript)
       realtime.disconnect()
-      updatePreferences((current) => ({
-        ...current,
-        feedback: current.feedback.map((item, index) => ({
-          ...item,
-          score: Math.min(96, item.score + (index === 1 ? 4 : 2)),
-        })),
-        sessionScore: Math.min(98, current.sessionScore + 3),
-        progress: {
-          ...current.progress,
-          [selectedLevel]: Math.min(100, current.progress[selectedLevel] + 3),
-        },
-      }))
+      return
+    }
+
+    if (hasApiKey === false) {
+      const startedAt = new Date().toISOString()
+      sessionStartRef.current = startedAt
+      setManualSession({ startedAt, turns: buildManualTranscript(selectedScenario) })
       return
     }
 
@@ -537,7 +579,8 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
   }
 
   function resetLocalSessionState() {
-    if (isLive) realtime.disconnect()
+    if (manualSession !== null) setManualSession(null)
+    if (realtime.status === "live") realtime.disconnect()
     const current = readStoredPreferences()
     savePreferences({
       ...cloneDefaultPreferences(defaultPreferences),
@@ -601,19 +644,21 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
         ? "bg-[#c98b3a] animate-pulse"
         : "bg-[#2f6f57]"
 
-  const phaseCopy = {
-    idle: t("phase.idle"),
-    connecting: t("phase.connecting"),
-    listening: t("phase.listening"),
-    transcribing: t("phase.transcribing"),
-    "tutor-speaking": t("phase.tutorSpeaking"),
-    "searching-materials": t("phase.searchingMaterials"),
-    ending: t("phase.ending"),
-    reconnecting: t("phase.reconnecting"),
-    "missing-key": t("phase.missingKey"),
-    "mic-error": t("phase.micError"),
-    error: t("phase.error"),
-  }[realtime.phase]
+  const phaseCopy = manualSession !== null
+    ? t("phase.manual")
+    : {
+        idle: t("phase.idle"),
+        connecting: t("phase.connecting"),
+        listening: t("phase.listening"),
+        transcribing: t("phase.transcribing"),
+        "tutor-speaking": t("phase.tutorSpeaking"),
+        "searching-materials": t("phase.searchingMaterials"),
+        ending: t("phase.ending"),
+        reconnecting: t("phase.reconnecting"),
+        "missing-key": t("phase.missingKey"),
+        "mic-error": t("phase.micError"),
+        error: t("phase.error"),
+      }[realtime.phase]
 
   const headlineClass =
     "font-serif text-[34px] leading-[38px] tracking-tight text-[#1f2420] sm:text-[38px] sm:leading-[42px]"
@@ -874,7 +919,16 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
               <div className="flex w-12 flex-col items-center">
                 <button
                   type="button"
-                  onClick={() => isLive && realtime.disconnect()}
+                  onClick={() => {
+                    if (!isLive) return
+                    if (manualSession !== null) {
+                      recordSession(null, "manual", manualSession.turns)
+                      setManualSession(null)
+                    } else {
+                      recordSession(null, "voice", realtime.transcript)
+                      realtime.disconnect()
+                    }
+                  }}
                   aria-label={t("control.endConversation")}
                   title={t("control.endConversation")}
                   data-control-tooltip={t("control.endConversation")}
@@ -888,6 +942,13 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
                 </span>
               </div>
             </div>
+
+            {manualSession !== null && (
+              <div className="mt-5 flex w-full max-w-[640px] items-start gap-2 rounded-lg border border-[#d9b78d] bg-[#fff8ed] p-3 text-left text-[13px] text-[#765327]">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                {t("manual.notice")}
+              </div>
+            )}
 
             {realtime.status === "missing-key" && (
               <div className="mt-5 flex w-full max-w-[640px] items-start gap-2 rounded-lg border border-[#d9b78d] bg-[#fff8ed] p-3 text-left text-[13px] text-[#765327]">
@@ -1135,6 +1196,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
       <StudioPanelOverlay
         panel={activePanel}
         preferences={preferences}
+        streakDays={streakDays}
         history={history}
         selectedScenario={selectedScenario}
         materials={materials}
@@ -1415,6 +1477,7 @@ function CorrectionCard({
 function StudioPanelOverlay({
   panel,
   preferences,
+  streakDays,
   history,
   selectedScenario,
   materials,
@@ -1434,6 +1497,7 @@ function StudioPanelOverlay({
 }: {
   panel: ActivePanel
   preferences: PracticePreferences
+  streakDays: number
   history: SessionRecord[]
   selectedScenario: Scenario
   materials: LessonMaterialSummary[]
@@ -1494,7 +1558,7 @@ function StudioPanelOverlay({
                     className="w-full rounded-[6px] border border-[#e0ddd2] bg-white px-3 py-1.5 text-[14px] font-semibold text-[#1f2420] focus:border-[#2f6f57] focus:outline-none"
                   />
                   <p className="mt-1 text-[13px] text-[#8a8e87]">
-                    {t("profile.streakSummary", { days: preferences.streakDays, progress: preferences.progress[preferences.selectedLevel], level: preferences.selectedLevel })}
+                    {t("profile.streakSummary", { days: streakDays, progress: preferences.progress[preferences.selectedLevel], level: preferences.selectedLevel })}
                   </p>
                 </div>
               </div>

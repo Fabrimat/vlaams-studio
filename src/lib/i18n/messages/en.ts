@@ -31,6 +31,9 @@ export const en: Record<MessageKey, string> = {
   "phase.missingKey": "API key missing",
   "phase.micError": "Microphone blocked",
   "phase.error": "Connection failed",
+  "phase.manual": "Practice mode (no key)",
+
+  "manual.notice": "Practice mode without live voice. Add an API key for a real conversation.",
 
   "control.micOff": "Unmute microphone",
   "control.micMute": "Mute microphone",
