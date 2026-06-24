@@ -73,6 +73,12 @@ export const en: Record<MessageKey, string> = {
   "session.scoreEyebrow": "Session score",
   "session.goingWell": "Going well",
   "session.empty": "No practice session completed yet. Start your first session to see your score and feedback.",
+  "metric.uitspraak": "Pronunciation",
+  "metric.woordenschat": "Vocabulary",
+  "metric.zelfvertrouwen": "Confidence",
+  "feedback.noteStrong": "Strong work, keep it up.",
+  "feedback.noteGood": "Good progress, you're growing.",
+  "feedback.noteKeep": "Keep practicing, you'll get there.",
   "common.details": "Details",
 
   "material.eyebrow": "Lesson material",

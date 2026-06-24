@@ -41,7 +41,6 @@ import type { CorrectionPayload, SessionEndPayload, TranscriptTurn } from "@/lib
 import {
   cloneDefaultPreferences,
   focusForScenario,
-  metricDetailFocus,
   panelTitleFor,
   updateVocabularyGoals,
 } from "@/lib/studio/ui-state"
@@ -296,6 +295,32 @@ function useWaveform(active: boolean, count = 68) {
 function scoreColor(score: number) {
   if (score >= 80) return "text-[#2f6f57]"
   return "text-[#c98b3a]"
+}
+
+// Feedback labels/notes are produced by the scoring lib as canonical Dutch
+// strings (see lib/studio/scoring.ts). Map them to UI-language message keys so
+// they follow the interface language; fall back to the raw string if unknown.
+const metricLabelKeys: Partial<Record<string, MessageKey>> = {
+  Uitspraak: "metric.uitspraak",
+  Woordenschat: "metric.woordenschat",
+  Zelfvertrouwen: "metric.zelfvertrouwen",
+}
+const metricNoteKeys: Partial<Record<string, MessageKey>> = {
+  "Sterk werk, blijf zo doorgaan.": "feedback.noteStrong",
+  "Goed bezig, je groeit.": "feedback.noteGood",
+  "Blijf oefenen, je komt er wel.": "feedback.noteKeep",
+}
+
+type Translator = ReturnType<typeof useT>
+
+function localizeMetricLabel(label: string, t: Translator): string {
+  const key = metricLabelKeys[label]
+  return key ? t(key) : label
+}
+
+function localizeMetricNote(note: string, t: Translator): string {
+  const key = metricNoteKeys[note]
+  return key ? t(key) : note
 }
 
 function createSeedConversationTurns(exchange: SeedExchange, showNote: boolean): TranscriptTurn[] {
@@ -670,8 +695,8 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
     <main className="min-h-[100dvh] overflow-x-clip bg-[#f4f1ea] text-[#1f2420]">
       <div className="grid min-h-[100dvh] w-full grid-cols-1 lg:grid-cols-[244px_minmax(0,1fr)_390px]">
         {/* LEFT RAIL */}
-        <aside className="border-b border-[#e0ddd2] bg-[#f4f1ea] px-5 py-6 sm:px-7 sm:py-7 lg:sticky lg:top-0 lg:self-start lg:max-h-[100dvh] lg:overflow-y-auto lg:border-b-0">
-          <div className="flex flex-col gap-5">
+        <aside className="border-b border-[#e0ddd2] bg-[#f4f1ea] px-5 py-6 sm:px-7 sm:py-7 lg:sticky lg:top-0 lg:h-[100dvh] lg:overflow-y-auto lg:border-b-0">
+          <div className="flex flex-col gap-5 lg:h-full">
             <p className="text-[18px] font-semibold leading-none tracking-tight text-[#1f2420]">
               Vlaams Studio
             </p>
@@ -767,7 +792,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
               </div>
             </Section>
 
-            <div className="-mx-5 mt-1 border-t border-[#e0ddd2] sm:-mx-7">
+            <div className="-mx-5 mt-6 border-t border-[#e0ddd2] sm:-mx-7 lg:mt-auto">
               <button
                 type="button"
                 onClick={() => setActivePanel({ type: "profile" })}
@@ -1027,7 +1052,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
                 className="rounded-[8px] border border-[#dcd8cb] bg-[#ece7d9] p-3.5"
               >
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
-                  {item.label}
+                  {localizeMetricLabel(item.label, t)}
                 </p>
                 <p
                   className={cn(
@@ -1038,7 +1063,7 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
                   {item.score}
                   <span className="text-[14px] font-medium text-[#8a8e87]"> / 100</span>
                 </p>
-                <p className="mt-2 text-[13px] leading-[18px] text-[#5a615b]">{item.note}</p>
+                <p className="mt-2 text-[13px] leading-[18px] text-[#5a615b]">{localizeMetricNote(item.note, t)}</p>
                 <button
                   type="button"
                   onClick={() => setActivePanel({ type: "metric", metric: item })}
@@ -1132,8 +1157,16 @@ function VlaamsStudioAppContent({ preferences }: { preferences: PracticePreferen
           </RailSection>
 
           <RailSection eyebrow={t("topic.eyebrow")}>
-            <p className="text-[14px] font-semibold leading-tight">{selectedScenario.topic}</p>
-            <p className="mt-1.5 text-[12px] text-[#8a8e87]">{selectedScenario.topicCategory}</p>
+            <Translatable
+              text={selectedScenario.topic}
+              language={translationLanguage}
+              className="block text-[14px] font-semibold leading-tight"
+            />
+            <Translatable
+              text={selectedScenario.topicCategory}
+              language={translationLanguage}
+              className="mt-1.5 block text-[12px] text-[#8a8e87]"
+            />
             <button
               type="button"
               onClick={() => setActivePanel({ type: "setup" })}
@@ -1533,7 +1566,7 @@ function StudioPanelOverlay({
 
   if (!panel) return null
 
-  const title = panel.type === "metric" ? panel.metric.label : t(panelTitleFor(panel) as MessageKey)
+  const title = panel.type === "metric" ? localizeMetricLabel(panel.metric.label, t) : t(panelTitleFor(panel) as MessageKey)
 
   return (
     <div className="fixed inset-0 z-20 grid place-items-center bg-[#1f2420]/18 px-4 py-6 backdrop-blur-[2px]">
@@ -1748,13 +1781,13 @@ function StudioPanelOverlay({
           {panel.type === "metric" && (
             <div className="space-y-4">
               <PanelStat
-                label={panel.metric.label}
+                label={localizeMetricLabel(panel.metric.label, t)}
                 value={`${panel.metric.score} / 100`}
-                note={panel.metric.note}
+                note={localizeMetricNote(panel.metric.note, t)}
               />
               <div className="rounded-[8px] border border-[#e0ddd2] bg-white p-4">
                 <p className="text-[13px] leading-[21px] text-[#5a615b]">
-                  {t("panel.metric.detail", { focus: metricDetailFocus(panel.metric) })}
+                  {t("panel.metric.detail", { focus: localizeMetricLabel(panel.metric.label, t).toLowerCase() })}
                 </p>
               </div>
             </div>
@@ -1845,7 +1878,7 @@ function StudioPanelOverlay({
                       className="rounded-[8px] border border-[#dcd8cb] bg-[#ece7d9] p-3.5"
                     >
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a8e87]">
-                        {item.label}
+                        {localizeMetricLabel(item.label, t)}
                       </p>
                       <p
                         className={cn(
@@ -1856,7 +1889,7 @@ function StudioPanelOverlay({
                         {item.score}
                         <span className="text-[14px] font-medium text-[#8a8e87]"> / 100</span>
                       </p>
-                      <p className="mt-2 text-[13px] leading-[18px] text-[#5a615b]">{item.note}</p>
+                      <p className="mt-2 text-[13px] leading-[18px] text-[#5a615b]">{localizeMetricNote(item.note, t)}</p>
                     </div>
                   ))}
                 </div>
